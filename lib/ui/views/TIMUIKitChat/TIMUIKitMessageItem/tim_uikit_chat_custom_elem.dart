@@ -9,6 +9,12 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_statelesswidget.dart';
 
+const BorderRadius _kSelfBubbleRadius = BorderRadius.all(Radius.circular(12));
+const BorderRadius _kOtherBubbleRadius = BorderRadius.all(Radius.circular(12));
+
+const Color _kDefaultSelfBubbleColor = Color(0xFFFCF0CA);
+const Color _kDefaultOtherBubbleColor = Color(0xFFF8F8F8);
+
 class TIMUIKitCustomElem extends TIMUIKitStatelessWidget {
   final V2TimCustomElem? customElem;
   final bool isFromSelf;
@@ -34,23 +40,21 @@ class TIMUIKitCustomElem extends TIMUIKitStatelessWidget {
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final theme = value.theme;
-    final borderRadius = isFromSelf
-        ? const BorderRadius.only(
-            topLeft: Radius.circular(10),
-            topRight: Radius.circular(2),
-            bottomLeft: Radius.circular(10),
-            bottomRight: Radius.circular(10))
-        : const BorderRadius.only(
-            topLeft: Radius.circular(2),
-            topRight: Radius.circular(10),
-            bottomLeft: Radius.circular(10),
-            bottomRight: Radius.circular(10));
-    final backgroundColor = isFromSelf ? theme.lightPrimaryMaterialColor.shade50 : theme.weakBackgroundColor;
+    final BorderRadius resolvedBorderRadius = messageBorderRadius ??
+        (isFromSelf ? _kSelfBubbleRadius : _kOtherBubbleRadius);
+    final Color resolvedBubbleColor = messageBackgroundColor ??
+        (isFromSelf
+            ? (theme.chatMessageItemFromSelfBgColor ??
+                theme.lightPrimaryMaterialColor.shade50 ??
+                _kDefaultSelfBubbleColor)
+            : (theme.chatMessageItemFromOthersBgColor ??
+                theme.weakBackgroundColor ??
+                _kDefaultOtherBubbleColor));
     return Container(
         padding: textPadding ?? const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: messageBackgroundColor ?? backgroundColor,
-          borderRadius: messageBorderRadius ?? borderRadius,
+          color: resolvedBubbleColor,
+          borderRadius: resolvedBorderRadius,
         ),
         constraints: const BoxConstraints(maxWidth: 240),
         child: Column(

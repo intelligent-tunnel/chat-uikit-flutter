@@ -19,6 +19,12 @@ import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 import 'TIMUIKitMessageReaction/tim_uikit_message_reaction_show_panel.dart';
 
+const BorderRadius _kSelfBubbleRadius = BorderRadius.all(Radius.circular(12));
+const BorderRadius _kOtherBubbleRadius = BorderRadius.all(Radius.circular(12));
+
+const Color _kDefaultSelfBubbleColor = Color(0xFFFCF0CA);
+const Color _kDefaultOtherBubbleColor = Color(0xFFF8F8F8);
+
 class TIMUIKitMergerElem extends StatefulWidget {
   final V2TimMergerElem mergerElem;
   final String messageID;
@@ -83,7 +89,8 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
   _handleTap(BuildContext context, TUIChatSeparateViewModel model) async {
     try {
       if (widget.messageID != "") {
-        final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+        final isDesktopScreen =
+            TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
 
         if (isDesktopScreen) {
           TUIKitWidePopup.showPopupWindow(
@@ -95,7 +102,9 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
             child: (onClose) => Scrollbar(
               controller: _scrollController,
               child: MergerMessageScreen(
-                  messageItemBuilder: widget.messageItemBuilder, model: model, msgID: widget.messageID),
+                  messageItemBuilder: widget.messageItemBuilder,
+                  model: model,
+                  msgID: widget.messageID),
             ),
           );
         } else {
@@ -103,12 +112,17 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
               context,
               MaterialPageRoute(
                 builder: (context) => MergerMessageScreen(
-                    messageItemBuilder: widget.messageItemBuilder, model: model, msgID: widget.messageID),
+                    messageItemBuilder: widget.messageItemBuilder,
+                    model: model,
+                    msgID: widget.messageID),
               ));
         }
       }
     } catch (e) {
-      onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("无法定位到原消息"), infoCode: 6660401));
+      onTIMCallback(TIMCallback(
+          type: TIMCallbackType.INFO,
+          infoRecommendText: TIM_t("无法定位到原消息"),
+          infoCode: 6660401));
     }
   }
 
@@ -128,17 +142,24 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
         _showJumpColor();
       });
     }
-    final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+    final isDesktopScreen =
+        TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+    final BorderRadius resolvedBorderRadius =
+        widget.isSelf ? _kSelfBubbleRadius : _kOtherBubbleRadius;
+    final Color resolvedBubbleColor = widget.isSelf
+        ? (theme.chatMessageItemFromSelfBgColor ??
+            theme.lightPrimaryMaterialColor.shade50 ??
+            _kDefaultSelfBubbleColor)
+        : (theme.chatMessageItemFromOthersBgColor ??
+            theme.weakBackgroundColor ??
+            _kDefaultOtherBubbleColor);
     return Container(
-      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * (isDesktopScreen ? 0.3 : 0.6)),
+      constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width *
+              (isDesktopScreen ? 0.3 : 0.6)),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: widget.isSelf ? const Radius.circular(10) : Radius.zero,
-          bottomLeft: const Radius.circular(10),
-          topRight: widget.isSelf ? Radius.zero : const Radius.circular(10),
-          bottomRight: const Radius.circular(10),
-        ),
+        color: resolvedBubbleColor,
+        borderRadius: resolvedBorderRadius,
         border: Border.all(
           color: isShowJumpState
               ? const Color.fromRGBO(245, 166, 35, 1)
@@ -212,7 +233,8 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
                   fontSize: 10,
                 ),
               ),
-              if (widget.isShowMessageReaction ?? true) TIMUIKitMessageReactionShowPanel(message: widget.message)
+              if (widget.isShowMessageReaction ?? true)
+                TIMUIKitMessageReactionShowPanel(message: widget.message)
             ],
           ),
         ),

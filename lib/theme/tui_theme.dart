@@ -111,10 +111,10 @@ class TUITheme {
     this.chatMessageItemTextColor = Colors.black, // 1
 
     /// 聊天页历史消息列表来自自己时背景颜色
-    this.chatMessageItemFromSelfBgColor = const Color(0xFFD1E3FF),
+    this.chatMessageItemFromSelfBgColor = const Color(0xFFFCF0CA),
 
     /// 聊天页历史消息列表来自非自己时背景颜色
-    this.chatMessageItemFromOthersBgColor = const Color(0xFFEDEDED), // 1
+    this.chatMessageItemFromOthersBgColor = const Color(0xFFF8F8F8), // 1
 
     /// 聊天页历史消息列表已读状态字体颜色
     this.chatMessageItemUnreadStatusTextColor = const Color(0xFF999999), // 1
