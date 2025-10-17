@@ -148,6 +148,8 @@ class TIMUIKitTextFieldLayoutNarrow extends StatefulWidget {
 
 class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFieldLayoutNarrow> {
   final TUISettingModel settingModel = serviceLocator<TUISettingModel>();
+  final ScrollController _textScrollController = ScrollController();
+  VoidCallback? _controllerListener;
 
   bool showMore = false;
   bool showMoreButton = true;
@@ -161,14 +163,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
   void initState() {
     super.initState();
     if (widget.controller != null) {
-      widget.controller?.addListener(
-        () {
-          final actionType = widget.controller?.actionType;
-          if (actionType == ActionType.hideAllPanel) {
-            hideAllPanel();
-          }
-        },
-      );
+      _controllerListener = () {
+        final actionType = widget.controller?.actionType;
+        if (actionType == ActionType.hideAllPanel) {
+          hideAllPanel();
+        }
+      };
+      widget.controller?.addListener(_controllerListener!);
     }
   }
 
@@ -270,6 +271,15 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     }
 
     return const SizedBox(height: 0);
+  }
+
+  @override
+  void dispose() {
+    if (widget.controller != null && _controllerListener != null) {
+      widget.controller?.removeListener(_controllerListener!);
+    }
+    _textScrollController.dispose();
+    super.dispose();
   }
 
   double _getBottomHeight() {
@@ -427,11 +437,12 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
           _buildRepliedMessage(widget.repliedMessage),
           Container(
             color: widget.backgroundColor ?? Colors.transparent,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  constraints: const BoxConstraints(minHeight: 54),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
                   decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(28),
@@ -463,29 +474,26 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                               });
                             }
                           },
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF7F7F8),
-                              borderRadius: BorderRadius.circular(18),
+                          child: SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Center(
+                              child: showSendSoundText
+                                  ? SvgPicture.asset(
+                                      'images/keyboard.svg',
+                                      package: 'tencent_cloud_chat_uikit',
+                                      width: 20,
+                                      height: 20,
+                                    )
+                                  : SvgPicture.asset(
+                                      'assets/images/chat/voice.svg',
+                                      width: 20,
+                                      height: 20,
+                                    ),
                             ),
-                            alignment: Alignment.center,
-                            child: showSendSoundText
-                                ? SvgPicture.asset(
-                                    'images/keyboard.svg',
-                                    package: 'tencent_cloud_chat_uikit',
-                                    width: 20,
-                                    height: 20,
-                                  )
-                                : SvgPicture.asset(
-                                    'assets/images/chat/voice.svg',
-                                    width: 20,
-                                    height: 20,
-                                  ),
                           ),
                         ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: showSendSoundText
                             ? Padding(
@@ -499,10 +507,10 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                 Center(
                                   child: KeyboardVisibility(
                                       child: ExtendedTextField(
-                                          maxLines: 4,
+                                          maxLines: 5,
                                           minLines: 1,
                                           focusNode: widget.focusNode,
-                                          style: const TextStyle(fontSize: 16, color: Color(0xFF282731)),
+                                          style: const TextStyle(fontSize: 14, color: Color(0xFF282731)),
                                           onChanged: debounceFunc,
                                           onTap: () {
                                             showKeyboard = true;
@@ -532,25 +540,23 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                               border: InputBorder.none,
                                               isDense: true,
                                               contentPadding: EdgeInsets.zero,
-                                              hintStyle: const TextStyle(
-                                                color: Color(0xFFAEA4A3),
-                                                fontSize: 16,
-                                              ),
+                                              hintStyle: const TextStyle(color: Color(0xFFAEA4A3), fontSize: 14),
                                               hintText: widget.hintText ?? ''),
                                           controller: widget.textEditingController,
+                                          scrollController: _textScrollController,
                                           specialTextSpanBuilder: PlatformUtils().isWeb
                                               ? null
                                               : DefaultSpecialTextSpanBuilder(
                                                   isUseQQPackage:
-                                                      widget.model.chatConfig.stickerPanelConfig?.useQQStickerPackage ??
+                                                      widget.model.chatConfig.stickerPanelConfig
+                                                              ?.useQQStickerPackage ??
                                                           true,
-                                                  isUseTencentCloudChatPackage: widget.model.chatConfig
-                                                          .stickerPanelConfig?.useTencentCloudChatStickerPackage ??
+                                                  isUseTencentCloudChatPackage: widget
+                                                          .model.chatConfig.stickerPanelConfig
+                                                          ?.useTencentCloudChatStickerPackage ??
                                                       true,
                                                   isUseTencentCloudChatPackageOldKeys: widget
-                                                          .model
-                                                          .chatConfig
-                                                          .stickerPanelConfig
+                                                          .model.chatConfig.stickerPanelConfig
                                                           ?.useTencentCloudChatStickerPackageOldKeys ??
                                                       false,
                                                   customEmojiStickerList: widget.customEmojiStickerList,
@@ -579,29 +585,30 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                 ),
                               ]),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 0),
                       if (widget.showSendEmoji)
                         InkWell(
                           onTap: () {
                             _openEmojiPanel();
                             widget.goDownBottom();
                           },
-                          child: Container(
+                          child: SizedBox(
                             width: 32,
                             height: 32,
-                            alignment: Alignment.center,
-                            child: showEmojiPanel
-                                ? SvgPicture.asset(
-                                    'images/keyboard.svg',
-                                    package: 'tencent_cloud_chat_uikit',
-                                    width: 20,
-                                    height: 20,
-                                  )
-                                : SvgPicture.asset(
-                                    'assets/images/chat/emoji.svg',
-                                    width: 20,
-                                    height: 20,
-                                  ),
+                            child: Center(
+                              child: showEmojiPanel
+                                  ? SvgPicture.asset(
+                                      'images/keyboard.svg',
+                                      package: 'tencent_cloud_chat_uikit',
+                                      width: 20,
+                                      height: 20,
+                                    )
+                                  : SvgPicture.asset(
+                                      'assets/images/chat/emoji.svg',
+                                      width: 20,
+                                      height: 20,
+                                    ),
+                            ),
                           ),
                         ),
                       const SizedBox(width: 12),
@@ -614,10 +621,12 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                           child: SizedBox(
                             width: 32,
                             height: 32,
-                            child: SvgPicture.asset(
-                              'assets/images/chat/smile.svg',
-                              width: 24,
-                              height: 24,
+                            child: Center(
+                              child: SvgPicture.asset(
+                                'assets/images/chat/smile.svg',
+                                width: 20,
+                                height: 20,
+                              ),
                             ),
                           ),
                         ),
