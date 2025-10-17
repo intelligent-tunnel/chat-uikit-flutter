@@ -156,6 +156,9 @@ class TIMUIKitChat extends StatefulWidget {
 
   final Widget? customAppBar;
 
+  /// Customize chat body background color.
+  final Color? chatBackgroundColor;
+
   final Widget? inputTopBuilder;
 
   /// Custom emoji panel.
@@ -214,6 +217,7 @@ class TIMUIKitChat extends StatefulWidget {
       this.textFieldBuilder,
       this.customEmojiStickerList = const [],
       this.customAppBar,
+      this.chatBackgroundColor,
       this.inputTopBuilder,
       this.onSecondaryTapAvatar,
       this.customMessageHoverBarOnDesktop})
@@ -503,7 +507,7 @@ class _TUIChatState extends TIMUIKitState<TIMUIKitChat> {
                           if (_joinInGroupCallWidget != null) Center(child: _joinInGroupCallWidget!),
                           Expanded(
                               child: Container(
-                            color: theme.chatBgColor,
+                            color: widget.chatBackgroundColor ?? theme.chatBgColor ?? Colors.white,
                             child: Align(
                                 key: alignKey,
                                 alignment: Alignment.topCenter,
