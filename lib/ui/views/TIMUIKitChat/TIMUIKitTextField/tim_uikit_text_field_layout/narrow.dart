@@ -505,71 +505,81 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                               )
                             : Stack(children: [
                                 Center(
-                                  child: KeyboardVisibility(
-                                      child: ExtendedTextField(
-                                          maxLines: 5,
-                                          minLines: 1,
-                                          focusNode: widget.focusNode,
-                                          style: const TextStyle(fontSize: 14, color: Color(0xFF282731)),
-                                          onChanged: debounceFunc,
-                                          onTap: () {
-                                            showKeyboard = true;
-                                            widget.goDownBottom();
-                                            setState(() {
-                                              showEmojiPanel = false;
-                                              showMore = false;
-                                            });
-                                          },
-                                          keyboardType: TextInputType.multiline,
-                                          textInputAction: PlatformUtils().isAndroid
-                                              ? TextInputAction.newline
-                                              : TextInputAction.send,
-                                          onEditingComplete: () {
-                                            widget.onSubmitted();
-                                            if (showKeyboard) {
-                                              widget.focusNode.requestFocus();
-                                            }
-                                            setState(() {
-                                              if (widget.textEditingController.text.isEmpty) {
-                                                showMoreButton = true;
-                                              }
-                                            });
-                                          },
-                                          textAlignVertical: TextAlignVertical.center,
-                                          decoration: InputDecoration(
-                                              border: InputBorder.none,
-                                              isDense: true,
-                                              contentPadding: EdgeInsets.zero,
-                                              hintStyle: const TextStyle(color: Color(0xFFAEA4A3), fontSize: 14),
-                                              hintText: widget.hintText ?? ''),
-                                          controller: widget.textEditingController,
-                                          scrollController: _textScrollController,
-                                          specialTextSpanBuilder: PlatformUtils().isWeb
-                                              ? null
-                                              : DefaultSpecialTextSpanBuilder(
-                                                  isUseQQPackage:
-                                                      widget.model.chatConfig.stickerPanelConfig
-                                                              ?.useQQStickerPackage ??
+                                  child: RawScrollbar(
+                                      controller: _textScrollController,
+                                      thumbVisibility: true,
+                                      trackVisibility: true,
+                                      interactive: true,
+                                      thickness: 4,
+                                      radius: const Radius.circular(2),
+                                      thumbColor: const Color(0xFFFFD94D),
+                                      trackColor: const Color(0xFFEFEFF0),
+                                      trackBorderColor: Colors.transparent,
+                                      child: KeyboardVisibility(
+                                          child: ExtendedTextField(
+                                              maxLines: 5,
+                                              minLines: 1,
+                                              focusNode: widget.focusNode,
+                                              style: const TextStyle(fontSize: 14, color: Color(0xFF282731)),
+                                              onChanged: debounceFunc,
+                                              onTap: () {
+                                                showKeyboard = true;
+                                                widget.goDownBottom();
+                                                setState(() {
+                                                  showEmojiPanel = false;
+                                                  showMore = false;
+                                                });
+                                              },
+                                              keyboardType: TextInputType.multiline,
+                                              textInputAction: PlatformUtils().isAndroid
+                                                  ? TextInputAction.newline
+                                                  : TextInputAction.send,
+                                              onEditingComplete: () {
+                                                widget.onSubmitted();
+                                                if (showKeyboard) {
+                                                  widget.focusNode.requestFocus();
+                                                }
+                                                setState(() {
+                                                  if (widget.textEditingController.text.isEmpty) {
+                                                    showMoreButton = true;
+                                                  }
+                                                });
+                                              },
+                                              textAlignVertical: TextAlignVertical.center,
+                                              decoration: InputDecoration(
+                                                  border: InputBorder.none,
+                                                  isDense: true,
+                                                  contentPadding: EdgeInsets.zero,
+                                                  hintStyle: const TextStyle(color: Color(0xFFAEA4A3), fontSize: 14),
+                                                  hintText: widget.hintText ?? ''),
+                                              controller: widget.textEditingController,
+                                              scrollController: _textScrollController,
+                                              specialTextSpanBuilder: PlatformUtils().isWeb
+                                                  ? null
+                                                  : DefaultSpecialTextSpanBuilder(
+                                                      isUseQQPackage:
+                                                          widget.model.chatConfig.stickerPanelConfig
+                                                                  ?.useQQStickerPackage ??
+                                                              true,
+                                                      isUseTencentCloudChatPackage: widget
+                                                              .model.chatConfig.stickerPanelConfig
+                                                              ?.useTencentCloudChatStickerPackage ??
                                                           true,
-                                                  isUseTencentCloudChatPackage: widget
-                                                          .model.chatConfig.stickerPanelConfig
-                                                          ?.useTencentCloudChatStickerPackage ??
-                                                      true,
-                                                  isUseTencentCloudChatPackageOldKeys: widget
-                                                          .model.chatConfig.stickerPanelConfig
-                                                          ?.useTencentCloudChatStickerPackageOldKeys ??
-                                                      false,
-                                                  customEmojiStickerList: widget.customEmojiStickerList,
-                                                  showAtBackground: true,
-                                                  checkHttpLink: false,
-                                                )),
+                                                      isUseTencentCloudChatPackageOldKeys: widget
+                                                              .model.chatConfig.stickerPanelConfig
+                                                              ?.useTencentCloudChatStickerPackageOldKeys ??
+                                                          false,
+                                                      customEmojiStickerList: widget.customEmojiStickerList,
+                                                      showAtBackground: true,
+                                                      checkHttpLink: false,
+                                                    )),
                                       onChanged: (bool visibility) {
                                         if (showKeyboard != visibility) {
                                           setState(() {
                                             showKeyboard = visibility;
                                           });
                                         }
-                                      }),
+                                      })),
                                 ),
                                 RawKeyboardListener(
                                   autofocus: true,
