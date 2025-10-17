@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
 import 'dart:math';
 
@@ -945,6 +947,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
             return null;
           }
 
+          // ignore: unused_local_variable
           final forbiddenText = getForbiddenText();
           return LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
             inputWidth = constraints.maxWidth;
