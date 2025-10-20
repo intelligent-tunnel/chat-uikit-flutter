@@ -436,7 +436,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
         children: [
           _buildRepliedMessage(widget.repliedMessage),
           Container(
-            color: widget.backgroundColor ?? Colors.transparent,
+            color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
               children: [
