@@ -482,13 +482,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                   ? SvgPicture.asset(
                                       'images/keyboard.svg',
                                       package: 'tencent_cloud_chat_uikit',
-                                      width: 20,
-                                      height: 20,
+                                      width: 24,
+                                      height: 24,
                                     )
                                   : SvgPicture.asset(
                                       'assets/images/chat/voice.svg',
-                                      width: 20,
-                                      height: 20,
+                                      width: 24,
+                                      height: 24,
                                     ),
                             ),
                           ),
@@ -610,18 +610,18 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                   ? SvgPicture.asset(
                                       'images/keyboard.svg',
                                       package: 'tencent_cloud_chat_uikit',
-                                      width: 20,
-                                      height: 20,
+                                      width: 24,
+                                      height: 24,
                                     )
                                   : SvgPicture.asset(
                                       'assets/images/chat/emoji.svg',
-                                      width: 20,
-                                      height: 20,
+                                      width: 24,
+                                      height: 24,
                                     ),
                             ),
                           ),
                         ),
-                      const SizedBox(width: 12),
+                      // const SizedBox(width: 12),
                       if (widget.showMorePanel && showMoreButton)
                         InkWell(
                           onTap: () {
@@ -634,8 +634,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                             child: Center(
                               child: SvgPicture.asset(
                                 'assets/images/chat/smile.svg',
-                                width: 20,
-                                height: 20,
+                                width: 24,
+                                height: 24,
                               ),
                             ),
                           ),
