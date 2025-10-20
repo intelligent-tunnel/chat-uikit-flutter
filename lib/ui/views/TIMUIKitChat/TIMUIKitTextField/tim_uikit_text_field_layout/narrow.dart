@@ -156,6 +156,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
   bool showSendSoundText = false;
   bool showEmojiPanel = false;
   bool showKeyboard = false;
+  bool showInputScrollbar = false;
   Function? setKeyboardHeight;
   double? bottomPadding;
 
@@ -421,7 +422,32 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       final isEmpty = value.isEmpty;
       if (isEmpty) {
         widget.handleSoftKeyBoardDelete();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_textScrollController.hasClients &&
+              _textScrollController.position.pixels !=
+                  _textScrollController.position.minScrollExtent) {
+            _textScrollController
+                .jumpTo(_textScrollController.position.minScrollExtent);
+          }
+        });
       }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_textScrollController.hasClients) {
+          if (showInputScrollbar) {
+            setState(() {
+              showInputScrollbar = false;
+            });
+          }
+          return;
+        }
+        final bool needScrollbar =
+            _textScrollController.position.maxScrollExtent > 0;
+        if (showInputScrollbar != needScrollbar) {
+          setState(() {
+            showInputScrollbar = needScrollbar;
+          });
+        }
+      });
     }, const Duration(milliseconds: 80));
 
     final MediaQueryData data = MediaQuery.of(context);
@@ -507,8 +533,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                 Center(
                                   child: RawScrollbar(
                                       controller: _textScrollController,
-                                      thumbVisibility: true,
-                                      trackVisibility: true,
+                                      thumbVisibility: showInputScrollbar,
+                                      trackVisibility: showInputScrollbar,
                                       interactive: true,
                                       thickness: 4,
                                       radius: const Radius.circular(2),
@@ -549,7 +575,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                               decoration: InputDecoration(
                                                   border: InputBorder.none,
                                                   isDense: true,
-                                                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                                                  contentPadding: const EdgeInsets.only(bottom: 6),
                                                   hintStyle: const TextStyle(color: Color(0xFFAEA4A3), fontSize: 14),
                                                   hintText: widget.hintText ?? ''),
                                               controller: widget.textEditingController,
