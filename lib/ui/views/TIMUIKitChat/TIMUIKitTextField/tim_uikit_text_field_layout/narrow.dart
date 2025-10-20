@@ -454,6 +454,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                         )
                       ]),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (PlatformUtils().isMobile && widget.showSendAudio)
                         InkWell(
@@ -480,8 +481,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                             child: Center(
                               child: showSendSoundText
                                   ? SvgPicture.asset(
-                                      'images/keyboard.svg',
-                                      package: 'tencent_cloud_chat_uikit',
+                                'assets/images/chat/keyboard.svg',
                                       width: 24,
                                       height: 24,
                                     )
@@ -497,7 +497,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                       Expanded(
                         child: showSendSoundText
                             ? Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(vertical: 0),
                                 child: SendSoundMessage(
                                     onDownBottom: widget.goDownBottom,
                                     conversationID: widget.conversationID,
@@ -549,7 +549,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                               decoration: InputDecoration(
                                                   border: InputBorder.none,
                                                   isDense: true,
-                                                  contentPadding: EdgeInsets.zero,
+                                                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
                                                   hintStyle: const TextStyle(color: Color(0xFFAEA4A3), fontSize: 14),
                                                   hintText: widget.hintText ?? ''),
                                               controller: widget.textEditingController,

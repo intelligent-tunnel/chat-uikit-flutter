@@ -304,7 +304,7 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
       onLongPressEnd: onLongPressEnd,
       onLongPressCancel: onLonePressCancel,
       child: Container(
-        height: 35,
+        height: 32,
         color: isRecording ? theme.weakBackgroundColor : Colors.white,
         alignment: Alignment.center,
         child: Text(
