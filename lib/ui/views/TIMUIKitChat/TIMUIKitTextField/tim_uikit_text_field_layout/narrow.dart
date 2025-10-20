@@ -541,7 +541,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                       thumbColor: const Color(0xF8B8B8B8),
                                       trackColor: const Color(0xF8EAEAEA),
                                       trackBorderColor: Colors.transparent,
-                                      padding: EdgeInsets.symmetric(vertical: 4),
+                                      padding: const EdgeInsets.symmetric(vertical: 0),
                                       child: KeyboardVisibility(
                                           child: ExtendedTextField(
                                               maxLines: 5,
