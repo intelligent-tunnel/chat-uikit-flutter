@@ -96,11 +96,13 @@ class EmojiUtil {
       if (isUseQQPackage && groupName == "4349") {
         for (final emoji in emojiGroup.list) {
           String emojiName = emoji.split('.png')[0];
-          defaultEmojiMap['[$emojiName]'] = '$_emojiFilePath/$groupName/$emojiName.png';
+          defaultEmojiMap['[$emojiName]'] =
+              '$_defaultEmojiFilePath/$groupName/$emojiName.png';
           keyList.add('[$emojiName]');
 
           final zhKey = TUIKitStickerConstData.emoji4349ZhMapList[emojiName];
-          defaultEmojiMap['[$zhKey]'] = '$_emojiFilePath/$groupName/$emojiName.png';
+          defaultEmojiMap['[$zhKey]'] =
+              '$_defaultEmojiFilePath/$groupName/$emojiName.png';
           keyList.add('[$zhKey]');
         }
         _emojiKeyCategoryMap[groupName] = keyList;
@@ -115,7 +117,8 @@ class EmojiUtil {
             compatibleEmojiName = getCompatibleEmojiName(emojiName);
           }
 
-          defaultEmojiMap['[$compatibleEmojiName]'] = '$_emojiFilePath/$groupName/$emojiName.png';
+          defaultEmojiMap['[$compatibleEmojiName]'] =
+              '$_defaultEmojiFilePath/$groupName/$emojiName.png';
           keyList.add('[$compatibleEmojiName]');
         }
         _emojiKeyCategoryMap[groupName] = keyList;
@@ -131,7 +134,8 @@ class EmojiUtil {
     for (final customEmojiGroup in customEmojiStickerList) {
       for (final customEmoji in customEmojiGroup.list) {
         String customEmojiName = customEmoji.split('.png')[0];
-        customEmojiMap['[$customEmojiName]'] = '$_emojiFilePath/${customEmojiGroup.name}/$customEmojiName.png';
+        customEmojiMap['[$customEmojiName]'] =
+            '$_customEmojiFilePath/${customEmojiGroup.name}/$customEmojiName.png';
         keyList.add('[$customEmojiName]');
       }
     }
@@ -150,10 +154,34 @@ class EmojiUtil {
   // A getter method for _emojiMap
   Map<String, List> get emojiKeyCategoryMap => _emojiKeyCategoryMap;
 
-  // An instance variable to store the emoji file path
-  final String _emojiFilePath = 'assets/custom_face_resource';
+  // An instance variable to store the default emoji file path
+  final String _defaultEmojiFilePath = 'assets/custom_face_resource';
 
-  // Singleton pattern to avoid creating multiple instances of EmojiUtil
+  // An instance variable to store the custom emoji file path
+  final String _customEmojiFilePath = 'assets/images/chat';
+
+  bool _isSameCustomSticker(List<CustomEmojiFaceData> other) {
+    if (customEmojiStickerList.length != other.length) {
+      return false;
+    }
+    for (int i = 0; i < other.length; i++) {
+      final current = customEmojiStickerList[i];
+      final target = other[i];
+      if (current.name != target.name ||
+          current.list.length != target.list.length ||
+          current.isEmoji != target.isEmoji) {
+        return false;
+      }
+      for (int j = 0; j < current.list.length; j++) {
+        if (current.list[j] != target.list[j]) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Singleton pattern with parameter awareness to avoid stale cache
   static EmojiUtil? _instance;
 
   // Factory constructor to return the singleton instance of EmojiUtil with custom parameters
@@ -162,11 +190,19 @@ class EmojiUtil {
       bool isUseTencentCloudChatPackage = false,
       bool isUseTencentCloudChatPackageOldKeys = false,
       List<CustomEmojiFaceData> customEmojiStickerList = const []}) {
-    return _instance ??= EmojiUtil._internal(
-        isUseQQPackage: isUseQQPackage,
-        customEmojiStickerList: customEmojiStickerList,
-        isUseTencentCloudChatPackage: isUseTencentCloudChatPackage,
-        isUseTencentCloudChatPackageOldKeys: isUseTencentCloudChatPackageOldKeys);
+    final shouldRebuild = _instance == null ||
+        _instance!.isUseQQPackage != isUseQQPackage ||
+        _instance!.isUseTencentCloudChatPackage != isUseTencentCloudChatPackage ||
+        _instance!.isUseTencentCloudChatPackageOldKeys != isUseTencentCloudChatPackageOldKeys ||
+        !_instance!._isSameCustomSticker(customEmojiStickerList);
+    if (shouldRebuild) {
+      _instance = EmojiUtil._internal(
+          isUseQQPackage: isUseQQPackage,
+          customEmojiStickerList: customEmojiStickerList,
+          isUseTencentCloudChatPackage: isUseTencentCloudChatPackage,
+          isUseTencentCloudChatPackageOldKeys: isUseTencentCloudChatPackageOldKeys);
+    }
+    return _instance!;
   }
 
   static String getCompatibleEmojiName(String emojiName) {
