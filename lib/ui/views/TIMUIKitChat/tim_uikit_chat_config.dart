@@ -242,6 +242,14 @@ class TIMUIKitChatConfig {
   /// [Default]: false
   final bool isGroupAdminRecallEnabled;
 
+  /// Defines the height of the sticker panel on mobile platforms.
+  /// When `null`, the default height defined inside the input component is used.
+  final double? mobileStickerPanelHeight;
+
+  /// Defines the height of the more(+ button) panel on mobile platforms.
+  /// When `null`, the default height defined inside the input component is used.
+  final double? mobileMorePanelHeight;
+
   /// Defines the height of the sticker panel on desktop platforms.
   /// If the height of the sticker list exceeds this container height,
   /// the sticker list will automatically become scrollable.
@@ -260,6 +268,8 @@ class TIMUIKitChatConfig {
       {this.onTapLink,
       this.timeDividerConfig,
       this.desktopStickerPanelHeight = 400,
+      this.mobileStickerPanelHeight,
+      this.mobileMorePanelHeight,
       this.stickerPanelConfig,
       this.isGroupAdminRecallEnabled = false,
       this.isAutoReportRead = true,

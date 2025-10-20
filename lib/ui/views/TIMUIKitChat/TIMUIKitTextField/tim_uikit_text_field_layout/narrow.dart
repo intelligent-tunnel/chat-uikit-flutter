@@ -205,6 +205,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     if (showEmojiPanel) {
       return widget.customStickerPanel != null
           ? widget.customStickerPanel!(
+              height: widget.model.chatConfig.mobileStickerPanelHeight,
               sendTextMessage: () {
                 widget.onEmojiSubmitted();
                 setSendButton();
@@ -271,7 +272,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       return MorePanel(
           morePanelConfig: widget.morePanelConfig,
           conversationID: widget.conversationID,
-          conversationType: widget.conversationType);
+          conversationType: widget.conversationType,
+          height: widget.model.chatConfig.mobileMorePanelHeight);
     }
 
     return const SizedBox(height: 0);
@@ -301,7 +303,10 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       final height = originHeight != 0 ? originHeight : currentKeyboardHeight;
       return height;
     } else if (showMore || showEmojiPanel) {
-      return 248.0 + (bottomPadding ?? 0.0);
+      final double panelHeight = showMore
+          ? widget.model.chatConfig.mobileMorePanelHeight ?? 248.0
+          : widget.model.chatConfig.mobileStickerPanelHeight ?? 248.0;
+      return panelHeight + (bottomPadding ?? 0.0);
     } else if (widget.textEditingController.text.length >= 46 && showKeyboard == false) {
       return 25 + (bottomPadding ?? 0.0);
     } else {

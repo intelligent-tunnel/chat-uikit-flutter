@@ -84,7 +84,14 @@ class MorePanel extends StatefulWidget {
 
   final MorePanelConfig? morePanelConfig;
 
-  const MorePanel({required this.conversationID, required this.conversationType, Key? key, this.morePanelConfig})
+  final double? height;
+
+  const MorePanel(
+      {required this.conversationID,
+      required this.conversationType,
+      Key? key,
+      this.morePanelConfig,
+      this.height})
       : super(key: key);
 
   @override
@@ -688,7 +695,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     final TUIChatSeparateViewModel model = Provider.of<TUIChatSeparateViewModel>(context);
     final screenWidth = MediaQuery.of(context).size.width;
     return Container(
-      height: 248,
+      height: widget.height ?? 248,
       decoration: BoxDecoration(
         // color: hexToColor("EBF0F6"),
         border: Border(
