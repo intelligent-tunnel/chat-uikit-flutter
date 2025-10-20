@@ -232,36 +232,39 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                 setSendButton();
               }),
               defaultCustomEmojiStickerList: widget.isUseDefaultEmoji ? TUIKitStickerConstData.emojiList : [])
-          : StickerPanel(
-              isWideScreen: false,
-              sendTextMsg: () {
-                widget.onEmojiSubmitted();
-                setSendButton();
-              },
-              sendFaceMsg: widget.onCustomEmojiFaceSubmitted,
-              deleteText: () {
-                widget.backSpaceText();
-                setSendButton();
-              },
-              addText: (int unicode) {
-                final newText = String.fromCharCode(unicode);
-                widget.addStickerToText(newText);
-                setSendButton();
-                // handleSetDraftText();
-              },
-              addCustomEmojiText: ((String singleEmojiName) {
-                String? emojiName = singleEmojiName.split('.png')[0];
-                String compatibleEmojiName = emojiName;
-                if (widget.isUseTencentCloudChatPackageOldKeys) {
-                  compatibleEmojiName = EmojiUtil.getCompatibleEmojiName(emojiName);
-                }
+          : Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: StickerPanel(
+                  isWideScreen: false,
+                  sendTextMsg: () {
+                    widget.onEmojiSubmitted();
+                    setSendButton();
+                  },
+                  sendFaceMsg: widget.onCustomEmojiFaceSubmitted,
+                  deleteText: () {
+                    widget.backSpaceText();
+                    setSendButton();
+                  },
+                  addText: (int unicode) {
+                    final newText = String.fromCharCode(unicode);
+                    widget.addStickerToText(newText);
+                    setSendButton();
+                    // handleSetDraftText();
+                  },
+                  addCustomEmojiText: ((String singleEmojiName) {
+                    String? emojiName = singleEmojiName.split('.png')[0];
+                    String compatibleEmojiName = emojiName;
+                    if (widget.isUseTencentCloudChatPackageOldKeys) {
+                      compatibleEmojiName = EmojiUtil.getCompatibleEmojiName(emojiName);
+                    }
 
-                String newText = '[$compatibleEmojiName]';
-                widget.addStickerToText(newText);
-                setSendButton();
-              }),
-              customStickerPackageList: widget.stickerPackageList,
-              lightPrimaryColor: theme.lightPrimaryColor);
+                    String newText = '[$compatibleEmojiName]';
+                    widget.addStickerToText(newText);
+                    setSendButton();
+                  }),
+                  customStickerPackageList: widget.stickerPackageList,
+                  lightPrimaryColor: theme.lightPrimaryColor),
+            );
     }
 
     if (showMore) {
@@ -460,11 +463,12 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
           _buildRepliedMessage(widget.repliedMessage),
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
             child: Column(
               children: [
                 Container(
                   constraints: const BoxConstraints(minHeight: 54),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: [
                     BoxShadow(
