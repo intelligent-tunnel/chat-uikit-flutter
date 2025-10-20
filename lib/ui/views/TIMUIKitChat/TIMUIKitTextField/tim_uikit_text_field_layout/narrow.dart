@@ -424,10 +424,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
         widget.handleSoftKeyBoardDelete();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_textScrollController.hasClients &&
-              _textScrollController.position.pixels !=
-                  _textScrollController.position.minScrollExtent) {
-            _textScrollController
-                .jumpTo(_textScrollController.position.minScrollExtent);
+              _textScrollController.position.pixels != _textScrollController.position.minScrollExtent) {
+            _textScrollController.jumpTo(_textScrollController.position.minScrollExtent);
           }
         });
       }
@@ -440,8 +438,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
           }
           return;
         }
-        final bool needScrollbar =
-            _textScrollController.position.maxScrollExtent > 0;
+        final bool needScrollbar = _textScrollController.position.maxScrollExtent > 0;
         if (showInputScrollbar != needScrollbar) {
           setState(() {
             showInputScrollbar = needScrollbar;
@@ -469,16 +466,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                 Container(
                   constraints: const BoxConstraints(minHeight: 54),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0x1A000000),
-                          blurRadius: 18,
-                          offset: const Offset(0, 6),
-                        )
-                      ]),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: [
+                    BoxShadow(
+                      color: const Color(0x1A000000),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    )
+                  ]),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -507,7 +501,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                             child: Center(
                               child: showSendSoundText
                                   ? SvgPicture.asset(
-                                'assets/images/chat/keyboard.svg',
+                                      'assets/images/chat/keyboard.svg',
                                       width: 24,
                                       height: 24,
                                     )
@@ -541,7 +535,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                       thumbColor: const Color(0xF8B8B8B8),
                                       trackColor: const Color(0xF8EAEAEA),
                                       trackBorderColor: Colors.transparent,
-                                      padding: const EdgeInsets.only(top: 10,bottom: 4),
+                                      padding: const EdgeInsets.only(top: 10, bottom: 4),
                                       child: KeyboardVisibility(
                                           child: ExtendedTextField(
                                               maxLines: 5,
@@ -584,29 +578,29 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                               specialTextSpanBuilder: PlatformUtils().isWeb
                                                   ? null
                                                   : DefaultSpecialTextSpanBuilder(
-                                                      isUseQQPackage:
-                                                          widget.model.chatConfig.stickerPanelConfig
-                                                                  ?.useQQStickerPackage ??
-                                                              true,
-                                                      isUseTencentCloudChatPackage: widget
-                                                              .model.chatConfig.stickerPanelConfig
-                                                              ?.useTencentCloudChatStickerPackage ??
+                                                      isUseQQPackage: widget.model.chatConfig.stickerPanelConfig
+                                                              ?.useQQStickerPackage ??
+                                                          true,
+                                                      isUseTencentCloudChatPackage: widget.model.chatConfig
+                                                              .stickerPanelConfig?.useTencentCloudChatStickerPackage ??
                                                           true,
                                                       isUseTencentCloudChatPackageOldKeys: widget
-                                                              .model.chatConfig.stickerPanelConfig
+                                                              .model
+                                                              .chatConfig
+                                                              .stickerPanelConfig
                                                               ?.useTencentCloudChatStickerPackageOldKeys ??
                                                           false,
                                                       customEmojiStickerList: widget.customEmojiStickerList,
                                                       showAtBackground: true,
                                                       checkHttpLink: false,
                                                     )),
-                                      onChanged: (bool visibility) {
-                                        if (showKeyboard != visibility) {
-                                          setState(() {
-                                            showKeyboard = visibility;
-                                          });
-                                        }
-                                      })),
+                                          onChanged: (bool visibility) {
+                                            if (showKeyboard != visibility) {
+                                              setState(() {
+                                                showKeyboard = visibility;
+                                              });
+                                            }
+                                          })),
                                 ),
                                 RawKeyboardListener(
                                   autofocus: true,
@@ -635,8 +629,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                             child: Center(
                               child: showEmojiPanel
                                   ? SvgPicture.asset(
-                                      'images/keyboard.svg',
-                                      package: 'tencent_cloud_chat_uikit',
+                                      'assets/images/chat/keyboard.svg',
                                       width: 24,
                                       height: 24,
                                     )
