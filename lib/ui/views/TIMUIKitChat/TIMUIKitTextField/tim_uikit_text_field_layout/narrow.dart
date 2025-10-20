@@ -538,8 +538,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                       interactive: true,
                                       thickness: 4,
                                       radius: const Radius.circular(2),
-                                      thumbColor: const Color(0xFFFFD94D),
-                                      trackColor: const Color(0xFFEFEFF0),
+                                      thumbColor: const Color(0xF8B8B8B8),
+                                      trackColor: const Color(0xF8EAEAEA),
                                       trackBorderColor: Colors.transparent,
                                       child: KeyboardVisibility(
                                           child: ExtendedTextField(
