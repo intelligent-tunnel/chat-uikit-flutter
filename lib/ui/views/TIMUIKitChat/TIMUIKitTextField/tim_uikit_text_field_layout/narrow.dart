@@ -463,18 +463,18 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
           _buildRepliedMessage(widget.repliedMessage),
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+            // padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
             child: Column(
               children: [
                 Container(
                   constraints: const BoxConstraints(minHeight: 54),
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: [
+                  margin: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [
                     BoxShadow(
-                      color: const Color(0x1A000000),
+                      color: Color(0x1A000000),
                       blurRadius: 18,
-                      offset: const Offset(0, 6),
+                      offset: Offset(0, 1),
                     )
                   ]),
                   child: Row(
