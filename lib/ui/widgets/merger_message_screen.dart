@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:extended_text/extended_text.dart';
 import 'package:flutter/material.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/avatar.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme_view_model.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/special_text/DefaultSpecialTextSpanBuilder.dart';
 
 class MergerMessageScreen extends StatefulWidget {
   final TUIChatSeparateViewModel model;
@@ -193,7 +195,14 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
             () {},
           )!;
         }
-        return Text(TIM_t("[位置]"));
+        return ExtendedText(
+          TIM_t("[位置]"),
+          specialTextSpanBuilder: DefaultSpecialTextSpanBuilder(
+            isUseQQPackage: true,
+            isUseTencentCloudChatPackage: true,
+            showAtBackground: true,
+          ),
+        );
       case MessageElemType.V2TIM_ELEM_TYPE_MERGER:
         if (widget.messageItemBuilder?.mergerMessageItemBuilder != null) {
           return widget.messageItemBuilder!.mergerMessageItemBuilder!(
@@ -211,7 +220,14 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
             isSelf: isFromSelf,
             messageID: message.msgID!);
       default:
-        return Text(TIM_t("未知消息"));
+        return ExtendedText(
+          TIM_t("未知消息"),
+          specialTextSpanBuilder: DefaultSpecialTextSpanBuilder(
+            isUseQQPackage: true,
+            isUseTencentCloudChatPackage: true,
+            showAtBackground: true,
+          ),
+        );
     }
   }
 
