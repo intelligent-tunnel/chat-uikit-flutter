@@ -54,7 +54,10 @@ class EmojiText extends SpecialText {
             // fit: BoxFit.cover,
             margin: const EdgeInsets.all(0));
       } else {
-        return ImageSpan(AssetImage(emojiUtil.emojiMap[key]!),
+        final assetPath = emojiUtil.emojiMap[key]!;
+        final bool isPluginAsset = assetPath.startsWith('assets/custom_face_resource/');
+        return ImageSpan(
+            AssetImage(assetPath, package: isPluginAsset ? 'tim_ui_kit_sticker_plugin' : null),
             actualText: key,
             imageWidth: size,
             imageHeight: size,
@@ -120,6 +123,14 @@ class EmojiUtil {
           defaultEmojiMap['[$compatibleEmojiName]'] =
               '$_defaultEmojiFilePath/$groupName/$emojiName.png';
           keyList.add('[$compatibleEmojiName]');
+        }
+        _emojiKeyCategoryMap[groupName] = keyList;
+      } else if (groupName.startsWith('pet_')) {
+        for (final emoji in emojiGroup.list) {
+          final emojiName = emoji.split('.png')[0];
+          defaultEmojiMap['[$emojiName]'] =
+              '$_defaultEmojiFilePath/$groupName/$emojiName.png';
+          keyList.add('[$emojiName]');
         }
         _emojiKeyCategoryMap[groupName] = keyList;
       }
