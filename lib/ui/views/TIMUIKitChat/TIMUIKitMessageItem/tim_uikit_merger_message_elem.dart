@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:extended_text/extended_text.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_merger_elem.dart'
@@ -17,6 +18,7 @@ import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/wide_popup.dart';
 import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/special_text/DefaultSpecialTextSpanBuilder.dart';
 import 'TIMUIKitMessageReaction/tim_uikit_message_reaction_show_panel.dart';
 
 const BorderRadius _kSelfBubbleRadius = BorderRadius.all(Radius.circular(12));
@@ -205,7 +207,7 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
                       (e) => Row(
                         children: [
                           Expanded(
-                            child: Text(
+                            child: ExtendedText(
                               e,
                               textAlign: TextAlign.left,
                               softWrap: true,
@@ -214,6 +216,11 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
                               style: TextStyle(
                                 color: theme.weakTextColor,
                                 fontSize: 12,
+                              ),
+                              specialTextSpanBuilder: DefaultSpecialTextSpanBuilder(
+                                isUseQQPackage: true,
+                                isUseTencentCloudChatPackage: true,
+                                showAtBackground: true,
                               ),
                             ),
                           ),
