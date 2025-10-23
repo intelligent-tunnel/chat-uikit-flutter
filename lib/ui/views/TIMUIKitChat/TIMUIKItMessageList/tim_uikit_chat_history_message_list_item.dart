@@ -786,7 +786,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
     );
   }
 
-  bool isRevocable(int timestamp) => (DateTime.now().millisecondsSinceEpoch / 1000).ceil() - timestamp < 120;
+  bool isRevocable(int timestamp) => (DateTime.now().millisecondsSinceEpoch / 1000).ceil() - timestamp < 300;
 
   // TODO : 继续看这里
 
