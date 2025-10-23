@@ -127,11 +127,75 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
 
   List<MorePanelItem> itemList(TUIChatSeparateViewModel model, TUITheme theme) {
     final config = widget.morePanelConfig ?? MorePanelConfig();
+
+    if (PlatformUtils().isMobile) {
+      final List<MorePanelItem> mobileItems = [];
+
+      if (config.showGalleryPickAction) {
+        mobileItems.add(
+          MorePanelItem(
+              id: "photo",
+              title: TIM_t("相册"),
+              onTap: (c) {
+                _onFeatureTap(
+                  "photo",
+                  c,
+                  model,
+                  theme,
+                );
+              },
+              icon: Container(
+                height: 64,
+                width: 64,
+                margin: const EdgeInsets.only(bottom: 4),
+                decoration:
+                    const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(5))),
+                child: SvgPicture.asset(
+                  "images/photo.svg",
+                  package: 'tencent_cloud_chat_uikit',
+                  height: 64,
+                  width: 64,
+                ),
+              )),
+        );
+      }
+
+      if (config.showCameraAction) {
+        mobileItems.add(
+          MorePanelItem(
+              id: "take_photo",
+              title: TIM_t("拍照"),
+              onTap: (c) {
+                _onFeatureTap("take_photo", c, model, theme);
+              },
+              icon: Container(
+                height: 64,
+                width: 64,
+                margin: const EdgeInsets.only(bottom: 4),
+                decoration:
+                    const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(5))),
+                child: SvgPicture.asset(
+                  "images/screen.svg",
+                  package: 'tencent_cloud_chat_uikit',
+                  height: 64,
+                  width: 64,
+                ),
+              )),
+        );
+      }
+
+      if (config.extraAction != null && config.extraAction!.isNotEmpty) {
+        mobileItems.addAll(config.extraAction!);
+      }
+
+      return mobileItems;
+    }
+
     return [
       if (!PlatformUtils().isWeb)
         MorePanelItem(
             id: "photo",
-            title: TIM_t("照片"),
+            title: TIM_t("相册"),
             onTap: (c) {
               _onFeatureTap(
                 "photo",
