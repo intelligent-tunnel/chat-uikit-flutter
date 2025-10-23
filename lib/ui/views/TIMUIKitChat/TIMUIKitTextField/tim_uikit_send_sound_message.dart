@@ -47,6 +47,10 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
   bool isInit = false;
   bool isCancelSend = false;
   DateTime startTime = DateTime.now();
+  Duration _recordDuration = Duration.zero;
+  Timer? _maxDurationTimer;
+  Timer? _elapsedTimer;
+  static const Duration _maxRecordDuration = Duration(seconds: 60);
   List<StreamSubscription<Object>> subscriptions = [];
 
   OverlayEntry? overlayEntry;
@@ -65,57 +69,40 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
             color: Colors.transparent,
             type: MaterialType.canvas,
             child: Center(
-              child: Opacity(
-                opacity: 0.8,
                 child: Container(
-                  width: 160,
-                  height: 160,
+                  width: 172,
+                  height: 149,
                   decoration: const BoxDecoration(
-                    color: Color(0xff77797A),
+                    color: Color(0x9B282731),
                     borderRadius: BorderRadius.all(Radius.circular(20.0)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
                       const SizedBox(
-                        height: 20,
+                        height: 6,
                       ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.only(top: 10),
-                            child: Image.asset(
-                              "images/microphone.png",
-                              width: 50,
-                              height: 60,
-                              package: 'flutter_plugin_record_plus',
-                            ),
-                          ),
-                          ClipRect(
-                            clipBehavior: Clip.hardEdge,
-                            child: Align(
-                              heightFactor: max(min(volume, 1), 0.1),
-                              alignment: Alignment.bottomCenter,
-                              child: SizedBox(
-                                width: 50,
-                                height: 60,
-                                child: Image.asset(
-                                  "images/voice_volume_total.png",
-                                  width: 50,
-                                  height: 60,
-                                  package: 'flutter_plugin_record_plus',
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      Padding(padding: const EdgeInsets.only(left: 12) ,child:
+                      Text(
+                        _formatDuration(_recordDuration),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),),
                       const SizedBox(
-                        height: 20,
+                        height: 9,
                       ),
+                      Container(
+                        child: Image.asset(
+                          'assets/images/chat/microphone.png',
+                          width: 58,
+                          height: 58,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
                         soundTipsText,
                         style: const TextStyle(
@@ -128,7 +115,6 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
                   ),
                 ),
               ),
-            ),
           ),
         );
       });
@@ -142,7 +128,35 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
         soundTipsText = TIM_t("手指上滑，取消发送");
       });
       startTime = DateTime.now();
+      isCancelSend = false;
+      _recordDuration = Duration.zero;
+      _elapsedTimer?.cancel();
+      _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted || !isRecording) return;
+        setState(() {
+          _recordDuration = DateTime.now().difference(startTime);
+          if (overlayEntry != null) {
+            overlayEntry!.markNeedsBuild();
+          }
+        });
+      });
       SoundPlayer.startRecord();
+      _maxDurationTimer?.cancel();
+      _maxDurationTimer = Timer(_maxRecordDuration, () {
+        if (!mounted || !isRecording) {
+          return;
+        }
+        if (overlayEntry != null) {
+          overlayEntry!.remove();
+          overlayEntry = null;
+        }
+        isCancelSend = false;
+        onTIMCallback(TIMCallback(
+            type: TIMCallbackType.INFO,
+            infoRecommendText: TIM_t("已达到录音时长上限"),
+            infoCode: 6660405));
+        stop();
+      });
       buildOverLayView(context);
     }
   }
@@ -205,9 +219,14 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
     setState(() {
       isRecording = false;
     });
+    _maxDurationTimer?.cancel();
+    _maxDurationTimer = null;
+    _elapsedTimer?.cancel();
+    _elapsedTimer = null;
     SoundPlayer.stopRecord();
     setState(() {
       soundTipsText = TIM_t("手指上滑，取消发送");
+      _recordDuration = Duration.zero;
     });
   }
 
@@ -244,6 +263,10 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
     for (var subscription in subscriptions) {
       subscription.cancel();
     }
+    _maxDurationTimer?.cancel();
+    _maxDurationTimer = null;
+    _elapsedTimer?.cancel();
+    _elapsedTimer = null;
     super.dispose();
   }
 
@@ -318,5 +341,10 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
         ),
       ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds.clamp(0, _maxRecordDuration.inSeconds);
+    return '$totalSeconds”';
   }
 }
