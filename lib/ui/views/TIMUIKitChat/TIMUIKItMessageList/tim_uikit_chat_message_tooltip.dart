@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
+import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:provider/provider.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_sdk/enum/group_member_role.dart';
@@ -279,6 +280,37 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
         }
         return true;
       }).toList();
+    }
+
+    // 如果已存在翻译结果，替换“翻译”为“取消翻译”（仅文本消息）
+    if (!showTranslation && widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_TEXT) {
+      defaultFormattedTipsList.add(
+        MessageToolTipItem(
+          label: TIM_t("取消翻译"),
+          id: "cancel_translate",
+          iconImageAsset: "assets/images/chat/translate_text.png",
+          onClick: () async {
+            try {
+              final current = widget.message.localCustomData;
+              final Map<String, dynamic> map = current == null || current.isEmpty
+                  ? <String, dynamic>{}
+                  : (json.decode(current) as Map<String, dynamic>);
+              map.remove('translatedText');
+              final msgID = widget.message.msgID;
+              if (msgID != null && msgID.isNotEmpty) {
+                widget.message.localCustomData = json.encode(map);
+                // 通知全局模型刷新
+                globalModal.onMessageModified(widget.message);
+                // 同步写入 SDK 本地
+                await TencentImSDKPlugin.v2TIMManager.v2TIMMessageManager.setLocalCustomData(
+                  msgID: msgID,
+                  localCustomData: widget.message.localCustomData ?? "",
+                );
+              }
+            } catch (_) {}
+          },
+        ),
+      );
     }
 
     final List<MessageToolTipItem>? customList = widget.toolTipsConfig?.additionalMessageToolTips != null

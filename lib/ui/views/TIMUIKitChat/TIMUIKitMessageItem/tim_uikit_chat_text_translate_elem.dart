@@ -17,7 +17,8 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/link_preview/link_preview_en
 const BorderRadius _kSelfBubbleRadius = BorderRadius.all(Radius.circular(12));
 const BorderRadius _kOtherBubbleRadius = BorderRadius.all(Radius.circular(12));
 
-const Color _kDefaultSelfBubbleColor = Color(0xFFFCF0CA);
+// 统一翻译/转写文本背景为 0xFFF8F8F8（无论是自己还是对方）
+const Color _kDefaultSelfBubbleColor = Color(0xFFF8F8F8);
 const Color _kDefaultOtherBubbleColor = Color(0xFFF8F8F8);
 
 class TIMUIKitTextTranslationElem extends StatefulWidget {
@@ -105,13 +106,8 @@ class _TIMUIKitTextTranslationElemState
       }
     }
 
-    final Color? themeBackground = widget.isFromSelf
-        ? (theme.chatMessageItemFromSelfBgColor ??
-            theme.lightPrimaryMaterialColor.shade50)
-        : theme.chatMessageItemFromOthersBgColor;
-
+    // 按需可通过 widget.backgroundColor 覆盖，否则强制使用 F8F8F8，不受全局 theme 影响。
     final Color resolvedBubbleColor = widget.backgroundColor ??
-        themeBackground ??
         (widget.isFromSelf
             ? _kDefaultSelfBubbleColor
             : _kDefaultOtherBubbleColor);
@@ -140,6 +136,8 @@ class _TIMUIKitTextTranslationElemState
         customEmojiStickerList: widget.customEmojiStickerList,
         isEnableTextSelection:
             widget.chatModel.chatConfig.isEnableTextSelection ?? false);
+
+    final bool isVoiceTranscription = widget.message.soundElem != null;
 
     return TencentUtils.checkString(translateText) != null
         ? Container(
@@ -190,27 +188,29 @@ class _TIMUIKitTextTranslationElemState
                           customEmojiStickerList: widget.customEmojiStickerList,
                           showAtBackground: true,
                         )),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Color(0x72282c34),
-                      size: 12,
-                    ),
-                    const SizedBox(
-                      width: 4,
-                    ),
-                    Text(
-                      TIM_t("翻译完成"),
-                      style: const TextStyle(
-                          color: Color(0x72282c34), fontSize: 10),
-                    )
-                  ],
-                )
+                if (!isVoiceTranscription) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Color(0x72282c34),
+                        size: 12,
+                      ),
+                      const SizedBox(
+                        width: 4,
+                      ),
+                      Text(
+                        TIM_t("翻译完成"),
+                        style: const TextStyle(
+                            color: Color(0x72282c34), fontSize: 10),
+                      )
+                    ],
+                  )
+                ]
               ],
             ),
           )
