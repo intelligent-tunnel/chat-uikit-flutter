@@ -273,6 +273,8 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen> {
               left: 20,
               child: IconButton(
                 icon: Image.asset(
+                  width: 32,
+                  height: 32,
                   'images/close.png',
                   package: 'tencent_cloud_chat_uikit',
                 ),
@@ -286,6 +288,8 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen> {
               right: 20,
               child: IconButton(
                 icon: Image.asset(
+                  width: 32,
+                  height: 32,
                   'images/download.png',
                   package: 'tencent_cloud_chat_uikit',
                 ),
