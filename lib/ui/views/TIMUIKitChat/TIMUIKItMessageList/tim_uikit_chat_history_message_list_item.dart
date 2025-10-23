@@ -796,6 +796,8 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
       bool? isShowMoreSticker,
       TapDownDetails? details,
       bool? isFromWideToolTip}) {
+    // 左/右对齐时的额外内边距（使面板与消息之间留出一点空间）
+    const double _horizontalAlignPadding = 50.0;
     final isUseMessageReaction = widget.message.elemType == 2 ? false : model.chatConfig.isUseMessageReaction;
     final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
     final isSelf = widget.message.isSelf ?? true;
@@ -810,17 +812,20 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
     if (context != null) {
       RenderBox? box = _key.currentContext?.findRenderObject() as RenderBox?;
       if (details != null && box != null) {
+        // 有点击明细时，按消息气泡本身的几何位置进行左右对齐：
+        // 自己消息（右侧）→ 右对齐；对方消息（左侧）→ 左对齐。
         double screenWidth = MediaQuery.of(context).size.width;
-        final mousePosition = details.globalPosition;
+        final Offset offset = box.localToGlobal(Offset.zero);
+        final double boxWidth = box.size.width;
         hasArrow = isDesktopScreen ? false : true;
         arrowTipDistance = 0;
         arrowBaseWidth = 0;
         arrowLength = 0;
         popupDirection = TooltipDirection.down;
         if (isSelf || (isFromWideToolTip ?? false)) {
-          right = screenWidth - mousePosition.dx;
+          right = screenWidth - offset.dx - boxWidth + _horizontalAlignPadding;
         } else {
-          left = mousePosition.dx;
+          left = offset.dx + _horizontalAlignPadding;
         }
       } else {
         if (box != null) {
@@ -829,9 +834,11 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
           Offset offset = box.localToGlobal(Offset.zero);
           double boxWidth = box.size.width;
           if (isSelf) {
-            right = screenWidth - offset.dx - ((isUseMessageReaction) ? boxWidth : (boxWidth / 1.3));
+            // 右对齐到消息气泡右边缘
+            right = screenWidth - offset.dx - boxWidth + _horizontalAlignPadding;
           } else {
-            left = offset.dx;
+            // 左对齐到消息气泡左边缘
+            left = offset.dx + _horizontalAlignPadding;
           }
           if (offset.dy < 300 && !isLongMessage && viewInsetsBottom == 0) {
             selectEmojiPanelPosition = SelectEmojiPanelPosition.up;
