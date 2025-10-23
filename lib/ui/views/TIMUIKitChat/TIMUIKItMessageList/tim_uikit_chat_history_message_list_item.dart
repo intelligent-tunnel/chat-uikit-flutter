@@ -52,6 +52,8 @@ import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme_view_model.dart';
 import '../TIMUIKitMessageItem/TIMUIKitMessageReaction/tim_uikit_message_reaction_select_emoji.dart';
 
+const String _kReEditDismissedKey = 'reEditDismissed';
+
 typedef MessageRowBuilder = Widget? Function(
   /// current message
   V2TimMessage message,
@@ -630,7 +632,66 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
             groupTipsElem: messageItem.groupTipsElem!, groupMemberList: model.groupMemberList ?? []));
   }
 
+  Map<String, dynamic> _mergeLocalCustomData(String? origin, Map<String, dynamic> patch) {
+    Map<String, dynamic> base = {};
+    if (origin != null && origin.isNotEmpty) {
+      try {
+        base = Map<String, dynamic>.from(json.decode(origin) as Map);
+      } catch (_) {}
+    }
+    patch.forEach((key, value) {
+      if (value == null) {
+        base.remove(key);
+      } else {
+        base[key] = value;
+      }
+    });
+    return base;
+  }
+
+  bool _isReEditHintDismissed(V2TimMessage message) {
+    final String? data = message.localCustomData;
+    if (data == null || data.isEmpty) {
+      return false;
+    }
+    try {
+      final Map<String, dynamic> map = Map<String, dynamic>.from(json.decode(data) as Map);
+      return map[_kReEditDismissedKey] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _dismissReEditHint(TUIChatSeparateViewModel model) {
+    final String? msgID = widget.message.msgID;
+    if (msgID == null || msgID.isEmpty) {
+      setState(() {});
+      return;
+    }
+    final Map<String, dynamic> merged =
+        _mergeLocalCustomData(widget.message.localCustomData, {_kReEditDismissedKey: true});
+    final String encoded = json.encode(merged);
+    widget.message.localCustomData = encoded;
+    model.globalModel.onMessageModified(widget.message, model.conversationID);
+    model.globalModel.setLocalCustomData(msgID, encoded, model.conversationID);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Widget _selfRevokeEditMessageBuilder(theme, TUIChatSeparateViewModel model) {
+    if (_isReEditHintDismissed(widget.message)) {
+      final String revokeText =
+          TIM_t("您撤回了一条消息，").replaceAll(RegExp(r'[，,]\s*$'), '');
+      return Container(
+          margin: const EdgeInsets.symmetric(vertical: 20),
+          alignment: Alignment.center,
+          child: Text(
+            revokeText,
+            style: TextStyle(color: theme.weakTextColor, fontSize: 12),
+          ));
+    }
+
     return Container(
         margin: const EdgeInsets.symmetric(vertical: 20),
         alignment: Alignment.center,
@@ -644,6 +705,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
             recognizer: TapGestureRecognizer()
               ..onTap = () {
                 widget.textFieldController?.setTextField(widget.message.textElem?.text ?? "");
+                _dismissReEditHint(model);
               },
             style: const TextStyle(color: Color(0xFFFFB200)),
           )
