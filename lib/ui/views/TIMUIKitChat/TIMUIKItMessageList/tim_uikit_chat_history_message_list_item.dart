@@ -645,7 +645,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
               ..onTap = () {
                 widget.textFieldController?.setTextField(widget.message.textElem?.text ?? "");
               },
-            style: TextStyle(color: theme.primaryColor),
+            style: const TextStyle(color: Color(0xFFFFB200)),
           )
         ], style: const TextStyle(fontSize: 12))));
   }
