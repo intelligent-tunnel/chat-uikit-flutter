@@ -213,7 +213,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
         MessageToolTipItem(
             label: TIM_t("复制"),
             id: "copyMessage",
-            iconImageAsset: "images/copy_message.png",
+            iconImageAsset: "assets/images/chat/copy.png",
             onClick: () => _onTap("copyMessage", model)),
       if (shouldShowForwardAction && !model.isVoteMessage(widget.message))
         MessageToolTipItem(
@@ -225,7 +225,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
         MessageToolTipItem(
             label: TIM_t((dynamicQuote ?? model.chatConfig.isAtWhenReply) ? "回复" : "引用"),
             id: "replyMessage",
-            iconImageAsset: "images/reply_message.png",
+            iconImageAsset: "assets/images/chat/quote.png",
             onClick: () => _onTap("replyMessage", model)),
       MessageToolTipItem(
           label: TIM_t("多选"),
@@ -235,19 +235,19 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
       MessageToolTipItem(
           label: TIM_t("删除"),
           id: "delete",
-          iconImageAsset: "images/delete_message.png",
+          iconImageAsset: "assets/images/chat/del.png",
           onClick: () => _onTap("delete", model)),
       if (showTranslation)
         MessageToolTipItem(
             label: TIM_t("翻译"),
             id: "translate",
-            iconImageAsset: "images/translate.png",
+            iconImageAsset: "assets/images/chat/translate_text.png",
             onClick: () => _onTap("translate", model)),
       if (shouldShowRevokeAction)
         MessageToolTipItem(
             label: TIM_t("撤回"),
             id: "revoke",
-            iconImageAsset: "images/revoke_message.png",
+            iconImageAsset: "assets/images/chat/withdraw.png",
             onClick: () => _onTap("revoke", model)),
     ];
     final defaultTipsIds = defaultTipsList.map((e) => e.id);
@@ -307,10 +307,11 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                     children: [
                       Image.asset(
                         item.iconImageAsset,
-                        package: defaultTipsIds.contains(item.id) ? 'tencent_cloud_chat_uikit' : null,
+                        package: item.iconImageAsset.startsWith('assets/')
+                            ? null
+                            : (defaultTipsIds.contains(item.id) ? 'tencent_cloud_chat_uikit' : null),
                         width: 20,
                         height: 20,
-                        color: Colors.white,
                       ),
                       const SizedBox(
                         height: 4,
@@ -345,10 +346,11 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                   children: [
                     Image.asset(
                       item.iconImageAsset,
-                      package: defaultTipsIds.contains(item.id) ? 'tencent_cloud_chat_uikit' : null,
+                      package: item.iconImageAsset.startsWith('assets/')
+                          ? null
+                          : (defaultTipsIds.contains(item.id) ? 'tencent_cloud_chat_uikit' : null),
                       width: 20,
                       height: 20,
-                      color: Colors.white,
                     ),
                     const SizedBox(
                       height: 4,
@@ -483,6 +485,34 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final TUITheme theme = value.theme;
     final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+    String _fallbackIconFor(String id) {
+      switch (id) {
+        case 'copyMessage':
+          return 'images/copy_message.png';
+        case 'delete':
+          return 'images/delete_message.png';
+        case 'replyMessage':
+          return 'images/reply_message.png';
+        case 'translate':
+          return 'images/translate.png';
+        case 'translate_voice':
+          return 'images/translate.png';
+        case 'revoke':
+          return 'images/revoke_message.png';
+        case 'forwardMessage':
+          return 'images/forward_message.png';
+        case 'open':
+          return 'images/open_in_new.png';
+        case 'finder':
+          return 'images/folder_open.png';
+        case 'multiSelect':
+          return 'images/multi_message.png';
+        case 'shrink_translation':
+          return 'images/translate.png';
+        default:
+          return 'images/translate.png';
+      }
+    }
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: widget.model),
