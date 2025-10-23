@@ -1359,7 +1359,13 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
                                         ),
                                       )),
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                                crossAxisAlignment: (!isSelf &&
+                                        message.elemType == MessageElemType.V2TIM_ELEM_TYPE_SOUND &&
+                                        message.localCustomInt != null &&
+                                        message.localCustomInt !=
+                                            HistoryMessageDartConstant.read)
+                                    ? CrossAxisAlignment.center
+                                    : CrossAxisAlignment.end,
                                 children: [
                                   if (isSelf)
                                     renderHoverTipAndReadStatus(
@@ -1404,7 +1410,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
                                       message.localCustomInt != null &&
                                       message.localCustomInt != HistoryMessageDartConstant.read)
                                     Padding(
-                                        padding: const EdgeInsets.only(left: 5, bottom: 12),
+                                        padding: const EdgeInsets.only(left: 5),
                                         child: Icon(Icons.circle, color: theme.cautionColor, size: 10)),
                                   if (!isSelf)
                                     renderHoverTipAndReadStatus(
