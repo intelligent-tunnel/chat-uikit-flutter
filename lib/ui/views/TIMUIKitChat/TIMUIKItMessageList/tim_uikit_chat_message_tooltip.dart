@@ -295,7 +295,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
       widgetList = formattedTipsList
           .map(
             (item) => Material(
-              color: Colors.white,
+              color: Colors.transparent,
               child: InkWell(
                 onTap: () {
                   item.onClick();
@@ -310,6 +310,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                         package: defaultTipsIds.contains(item.id) ? 'tencent_cloud_chat_uikit' : null,
                         width: 20,
                         height: 20,
+                        color: Colors.white,
                       ),
                       const SizedBox(
                         height: 4,
@@ -319,7 +320,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                         item.label,
                         style: TextStyle(
                           decoration: TextDecoration.none,
-                          color: theme.darkTextColor,
+                          color: Colors.white,
                           fontSize: 12,
                         ),
                       )
@@ -334,7 +335,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
       widgetList = formattedTipsList
           .map(
             (item) => Material(
-              color: Colors.white,
+              color: Colors.transparent,
               child: ItemInkWell(
                 onTap: () {
                   item.onClick();
@@ -347,6 +348,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                       package: defaultTipsIds.contains(item.id) ? 'tencent_cloud_chat_uikit' : null,
                       width: 20,
                       height: 20,
+                      color: Colors.white,
                     ),
                     const SizedBox(
                       height: 4,
@@ -356,7 +358,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                       item.label,
                       style: TextStyle(
                         decoration: TextDecoration.none,
-                        color: theme.darkTextColor,
+                        color: Colors.white,
                         fontSize: 10,
                       ),
                     )
@@ -495,24 +497,12 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
         final message = widget.message;
         return Container(
             decoration: isDesktopScreen
-                ? BoxDecoration(
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0xCCbebebe),
-                        offset: Offset(2, 2),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                    border: Border.all(
-                      width: 1,
-                      color: hexToColor("dee0e3"),
-                    ),
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.all(Radius.circular(10)),
+                ? const BoxDecoration(
+                    color: Color(0xFF4C4C4C),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   )
                 : null,
-            color: isDesktopScreen ? null : Colors.white,
+            color: isDesktopScreen ? null : const Color(0xFF4C4C4C),
             padding: EdgeInsets.symmetric(horizontal: 8, vertical: isDesktopScreen ? 8 : 4),
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -543,7 +533,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                             thickness: 1,
                             indent: 0,
                             // endIndent: 10,
-                            color: Colors.black12)),
+                            color: Colors.white10)),
                   if (isShowMoreSticker == false)
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -598,7 +588,7 @@ class TIMUIKitMessageTooltipState extends TIMUIKitState<TIMUIKitMessageTooltip> 
                             thickness: 1,
                             indent: 0,
                             // endIndent: 10,
-                            color: Colors.black12)),
+                            color: Colors.white10)),
                   if ((!isDesktopScreen || widget.isShowMoreSticker) &&
                       widget.isUseMessageReaction &&
                       widget.selectEmojiPanelPosition == SelectEmojiPanelPosition.down)
