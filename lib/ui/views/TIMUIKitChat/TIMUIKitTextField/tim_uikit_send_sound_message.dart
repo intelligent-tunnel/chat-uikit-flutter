@@ -374,9 +374,14 @@ class _MicWaveBar extends StatelessWidget {
       curve: Curves.easeOut,
       width: 12,
       height: barHeight,
-      decoration: BoxDecoration(
-        color: const Color(0x80FFFFFF),
-        borderRadius: BorderRadius.circular(5),
+      decoration: const BoxDecoration(
+        color: Color(0x80FFFFFF),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(0),
+          topRight: Radius.circular(0),
+          bottomLeft: Radius.circular(5),
+          bottomRight: Radius.circular(5),
+        ),
       ),
     );
   }
