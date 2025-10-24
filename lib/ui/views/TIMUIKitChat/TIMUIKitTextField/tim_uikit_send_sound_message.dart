@@ -94,12 +94,23 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
                       const SizedBox(
                         height: 9,
                       ),
-                      Container(
-                        child: Image.asset(
-                          'assets/images/chat/microphone.png',
-                          width: 58,
-                          height: 58,
-                          fit: BoxFit.cover,
+                      SizedBox(
+                        width: 58,
+                        height: 58,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/images/chat/microphone.png',
+                              width: 58,
+                              height: 58,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              bottom: 18,
+                              child: _MicWaveBar(level: volume),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -346,5 +357,27 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
   String _formatDuration(Duration duration) {
     final totalSeconds = duration.inSeconds.clamp(0, _maxRecordDuration.inSeconds);
     return '$totalSeconds”';
+  }
+}
+
+class _MicWaveBar extends StatelessWidget {
+  const _MicWaveBar({required this.level});
+
+  final double level;
+
+  @override
+  Widget build(BuildContext context) {
+    final double normalized = level.clamp(0.0, 1.0);
+    final double barHeight = 12 + normalized * 28;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 80),
+      curve: Curves.easeOut,
+      width: 12,
+      height: barHeight,
+      decoration: BoxDecoration(
+        color: const Color(0x80FFFFFF),
+        borderRadius: BorderRadius.circular(5),
+      ),
+    );
   }
 }
