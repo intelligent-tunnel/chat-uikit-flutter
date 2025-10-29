@@ -1,5 +1,7 @@
 // ignore_for_file: unnecessary_getters_setters
 
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimConversationListener.dart';
@@ -155,6 +157,21 @@ class TUIConversationViewModel extends ChangeNotifier {
     });
   }
 
+  void _scheduleLifeCycleNotify() {
+    Future.microtask(() async {
+      List<V2TimConversation?> processedList =
+          List<V2TimConversation?>.from(_conversationList);
+      final ConversationLifeCycle? lifeCycle = _lifeCycle;
+      if (lifeCycle != null) {
+        processedList = await lifeCycle.conversationListWillMount(processedList);
+      }
+      _conversationList = removeDuplicates<V2TimConversation?>(
+          processedList,
+          (item1, item2) => item1?.conversationID == item2?.conversationID);
+      notifyListeners();
+    });
+  }
+
   loadInitConversation() async {
     await loadData(count: 40);
     // Remove the process to load such a many of conversations after launching
@@ -235,7 +252,7 @@ class TUIConversationViewModel extends ChangeNotifier {
     final res = await _conversationService.deleteConversation(conversationID: conversationID);
     if (res.code == 0) {
       _conversationList.removeWhere((element) => element?.conversationID == conversationID);
-      notifyListeners();
+      _scheduleLifeCycleNotify();
     }
     return res;
   }
@@ -250,7 +267,7 @@ class TUIConversationViewModel extends ChangeNotifier {
       }
     }
 
-    notifyListeners();
+    _scheduleLifeCycleNotify();
   }
 
   _onConversationDeleted(List<String> list) {
@@ -258,18 +275,14 @@ class TUIConversationViewModel extends ChangeNotifier {
       int index = _conversationList.indexWhere((item) => item!.conversationID == list[i]);
       if (index > -1) {
         _conversationList.removeAt(index);
-        _conversationList = removeDuplicates<V2TimConversation?>(
-            _conversationList, (item1, item2) => item1?.conversationID == item2?.conversationID);
       }
     }
-    notifyListeners();
+    _scheduleLifeCycleNotify();
   }
 
   _addNewConversation(List<V2TimConversation> list) {
     _conversationList.addAll(list);
-    _conversationList = removeDuplicates<V2TimConversation?>(
-        _conversationList, (item1, item2) => item1?.conversationID == item2?.conversationID);
-    notifyListeners();
+    _scheduleLifeCycleNotify();
   }
 
   setConversationListener() {
