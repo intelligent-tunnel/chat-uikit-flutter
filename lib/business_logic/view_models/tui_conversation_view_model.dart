@@ -50,6 +50,7 @@ class TUIConversationViewModel extends ChangeNotifier {
   final MessageService _messageService = serviceLocator<MessageService>();
   late V2TimConversationListener _conversationListener;
   List<V2TimConversation?> _conversationList = [];
+  List<V2TimConversation?> _rawConversationList = [];
   static V2TimConversation? _selectedConversation;
   Map<String, String> webDraftMap = {};
 
@@ -160,7 +161,9 @@ class TUIConversationViewModel extends ChangeNotifier {
   void _scheduleLifeCycleNotify() {
     Future.microtask(() async {
       List<V2TimConversation?> processedList =
-          List<V2TimConversation?>.from(_conversationList);
+          List<V2TimConversation?>.from(_rawConversationList);
+      processedList = removeDuplicates<V2TimConversation?>(
+          processedList, (item1, item2) => item1?.conversationID == item2?.conversationID);
       final ConversationLifeCycle? lifeCycle = _lifeCycle;
       if (lifeCycle != null) {
         processedList = await lifeCycle.conversationListWillMount(processedList);
@@ -195,14 +198,16 @@ class TUIConversationViewModel extends ChangeNotifier {
       if (conversationList.isEmpty || conversationList.length < count) {
         _haveMoreData = false;
       }
-      List<V2TimConversation?> combinedConversationList = [];
+      List<V2TimConversation?> combinedConversationList;
       if (isRefresh) {
         combinedConversationList = conversationList;
       } else {
-        combinedConversationList = [..._conversationList, ...conversationList];
+        combinedConversationList = [..._rawConversationList, ...conversationList];
       }
+      _rawConversationList = removeDuplicates<V2TimConversation?>(
+          combinedConversationList, (item1, item2) => item1?.conversationID == item2?.conversationID);
       final List<V2TimConversation?> finalConversationList =
-          await _lifeCycle?.conversationListWillMount(combinedConversationList) ?? combinedConversationList;
+          await _lifeCycle?.conversationListWillMount(_rawConversationList) ?? _rawConversationList;
       _conversationList = removeDuplicates<V2TimConversation?>(
           finalConversationList, (item1, item2) => item1?.conversationID == item2?.conversationID);
       notifyListeners();
@@ -251,7 +256,7 @@ class TUIConversationViewModel extends ChangeNotifier {
     }
     final res = await _conversationService.deleteConversation(conversationID: conversationID);
     if (res.code == 0) {
-      _conversationList.removeWhere((element) => element?.conversationID == conversationID);
+      _rawConversationList.removeWhere((element) => element?.conversationID == conversationID);
       _scheduleLifeCycleNotify();
     }
     return res;
@@ -259,11 +264,11 @@ class TUIConversationViewModel extends ChangeNotifier {
 
   _onConversationListChanged(List<V2TimConversation> list) {
     for (int element = 0; element < list.length; element++) {
-      int index = _conversationList.indexWhere((item) => item!.conversationID == list[element].conversationID);
+      int index = _rawConversationList.indexWhere((item) => item!.conversationID == list[element].conversationID);
       if (index > -1) {
-        _conversationList.setAll(index, [list[element]] as List<V2TimConversation?>);
+        _rawConversationList.setAll(index, [list[element]] as List<V2TimConversation?>);
       } else {
-        _conversationList.add(list[element]);
+        _rawConversationList.add(list[element]);
       }
     }
 
@@ -272,16 +277,16 @@ class TUIConversationViewModel extends ChangeNotifier {
 
   _onConversationDeleted(List<String> list) {
     for (int i = 0; i < list.length; i++) {
-      int index = _conversationList.indexWhere((item) => item!.conversationID == list[i]);
+      int index = _rawConversationList.indexWhere((item) => item!.conversationID == list[i]);
       if (index > -1) {
-        _conversationList.removeAt(index);
+        _rawConversationList.removeAt(index);
       }
     }
     _scheduleLifeCycleNotify();
   }
 
   _addNewConversation(List<V2TimConversation> list) {
-    _conversationList.addAll(list);
+    _rawConversationList.addAll(list);
     _scheduleLifeCycleNotify();
   }
 
@@ -334,6 +339,7 @@ class TUIConversationViewModel extends ChangeNotifier {
 
   clearData() {
     _conversationList = [];
+    _rawConversationList = [];
     _selectedConversation = null;
     _nextSeq = "0";
     _haveMoreData = true;
