@@ -46,6 +46,7 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
   bool isRecording = false;
   bool isInit = false;
   bool isCancelSend = false;
+  bool isInCancelArea = false;
   DateTime startTime = DateTime.now();
   Duration _recordDuration = Duration.zero;
   Timer? _maxDurationTimer;
@@ -136,7 +137,8 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
   onLongPressStart(_) {
     if (isInit) {
       setState(() {
-        soundTipsText = TIM_t("手指上滑，取消发送");
+        isInCancelArea = false;
+        soundTipsText = _getRecordingTip(_maxRecordDuration.inSeconds);
       });
       startTime = DateTime.now();
       isCancelSend = false;
@@ -144,12 +146,23 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
       _elapsedTimer?.cancel();
       _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted || !isRecording) return;
+        final now = DateTime.now();
+        final elapsed = now.difference(startTime);
+        final int secondsLeft =
+            max(0, _maxRecordDuration.inSeconds - elapsed.inSeconds);
+        String? nextTips;
+        if (!isInCancelArea) {
+          nextTips = _getRecordingTip(secondsLeft);
+        }
         setState(() {
-          _recordDuration = DateTime.now().difference(startTime);
-          if (overlayEntry != null) {
-            overlayEntry!.markNeedsBuild();
+          _recordDuration = elapsed;
+          if (nextTips != null && soundTipsText != nextTips) {
+            soundTipsText = nextTips;
           }
         });
+        if (overlayEntry != null) {
+          overlayEntry!.markNeedsBuild();
+        }
       });
       SoundPlayer.startRecord();
       _maxDurationTimer?.cancel();
@@ -176,16 +189,29 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
     double height = MediaQuery.of(context).size.height * 0.5 - 240;
     double dy = e.localPosition.dy;
 
-    if (dy.abs() > height) {
-      if (mounted && soundTipsText != TIM_t("松开取消")) {
+    final bool shouldCancel = dy.abs() > height;
+    if (shouldCancel) {
+      if (mounted && (!isInCancelArea || soundTipsText != TIM_t("松开取消"))) {
         setState(() {
+          isInCancelArea = true;
           soundTipsText = TIM_t("松开取消");
         });
       }
     } else {
-      if (mounted && soundTipsText == TIM_t("松开取消")) {
+      final int secondsLeft = max(
+        0,
+        _maxRecordDuration.inSeconds -
+            DateTime.now().difference(startTime).inSeconds,
+      );
+      final String nextTips = _getRecordingTip(secondsLeft);
+      if (mounted && isInCancelArea) {
         setState(() {
-          soundTipsText = TIM_t("手指上滑，取消发送");
+          isInCancelArea = false;
+          soundTipsText = nextTips;
+        });
+      } else if (mounted && soundTipsText != nextTips) {
+        setState(() {
+          soundTipsText = nextTips;
         });
       }
     }
@@ -229,6 +255,7 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
   void stop() {
     setState(() {
       isRecording = false;
+      isInCancelArea = false;
     });
     _maxDurationTimer?.cancel();
     _maxDurationTimer = null;
@@ -357,6 +384,15 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
   String _formatDuration(Duration duration) {
     final totalSeconds = duration.inSeconds.clamp(0, _maxRecordDuration.inSeconds);
     return '$totalSeconds”';
+  }
+
+  String _getRecordingTip(int secondsLeft) {
+    if (secondsLeft > 0 && secondsLeft <= 10) {
+      final option1Text = secondsLeft.toString();
+      return TIM_t_para("{{option1}}秒后录音结束", "$option1Text秒后录音结束")(
+          option1: option1Text);
+    }
+    return TIM_t("手指上滑，取消发送");
   }
 }
 
