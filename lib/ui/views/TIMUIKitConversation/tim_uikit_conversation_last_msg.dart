@@ -147,7 +147,11 @@ class _TIMUIKitLastMsgState extends TIMUIKitState<TIMUIKitLastMsg> {
   }
 
   Icon? _getIconByMsgStatus(BuildContext context) {
-    final msgStatus = widget.lastMsg!.status;
+    final message = widget.lastMsg;
+    if (message == null) {
+      return null;
+    }
+    final msgStatus = message.status;
     final theme = Provider.of<TUIThemeViewModel>(context).theme;
     if (msgStatus == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL) {
       return Icon(Icons.error, color: theme.cautionColor, size: 16);
@@ -192,12 +196,22 @@ class _TIMUIKitLastMsgState extends TIMUIKitState<TIMUIKitLastMsg> {
     return '[$draftShowText]';
   }
 
+  bool _hasDraft() {
+    return TencentUtils.checkString(widget.draftText)?.isNotEmpty ?? false;
+  }
+
+  String _getDraftContent() {
+    return widget.draftText;
+  }
+
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
     final TUITheme theme = value.theme;
     final icon = _getIconByMsgStatus(context);
     String disturbUnreadCountInfo = _getDisturbUnreadCountInfo();
+    final bool hasDraft = _hasDraft();
+    final String draftContent = _getDraftContent();
     return Row(children: [
       if (icon != null)
         Container(
@@ -206,14 +220,14 @@ class _TIMUIKitLastMsgState extends TIMUIKitState<TIMUIKitLastMsg> {
         ),
       if (widget.groupAtInfoList.isNotEmpty)
         Text(_getAtMessage(), style: TextStyle(color: theme.cautionColor, fontSize: widget.fontSize)),
-      if (widget.draftText != null && widget.draftText != "")
+      if (hasDraft)
         Text(_getDraftShowText(),
             style: TextStyle(color: theme.conversationItemDraftTextColor, fontSize: widget.fontSize)),
       if (disturbUnreadCountInfo != "")
         Text(disturbUnreadCountInfo, style: TextStyle(color: theme.weakTextColor, fontSize: widget.fontSize)),
-      if (widget.draftText != null && widget.draftText != "")
+      if (hasDraft)
         Expanded(
-          child: ExtendedText(groupTipsAbstractText,
+          child: ExtendedText(draftContent,
               softWrap: true,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -224,7 +238,7 @@ class _TIMUIKitLastMsgState extends TIMUIKitState<TIMUIKitLastMsg> {
                 showAtBackground: true,
               )),
         ),
-      if (widget.draftText == null || widget.draftText == "" && TencentUtils.checkString(groupTipsAbstractText) != null)
+      if (!hasDraft && TencentUtils.checkString(groupTipsAbstractText) != null)
         Expanded(
           child: ExtendedText(groupTipsAbstractText,
               softWrap: true,
