@@ -914,9 +914,13 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
       }
     }
 
+    final bool isGreetingLimitBlocked = (widget.message.localCustomInt ?? 0) == 90001;
+    final bool isSendFail = widget.message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL ||
+        isGreetingLimitBlocked;
+
     // 如果配置了显示回复消息，则需要根据消息状态来决定是否可以回复；如果配置了不显示回复消息，则不需要判断消息状态。
     if ((widget.toolTipsConfig?.showReplyMessage ?? true)) {
-      if (widget.message.status != MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL) {
+      if (!isSendFail) {
         widget.toolTipsConfig?.showReplyMessage = true;
       } else {
         widget.toolTipsConfig?.showReplyMessage = false;
@@ -925,8 +929,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
 
     // 如果配置了显示转发消息，则需要根据消息状态来决定是否可以转发；如果配置了不显示转发消息，则不需要判断消息状态。
     if ((widget.toolTipsConfig?.showForwardMessage ?? true)) {
-      if (widget.message.status != MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL &&
-          !(widget.message.hasRiskContent ?? false)) {
+      if (!isSendFail && !(widget.message.hasRiskContent ?? false)) {
         widget.toolTipsConfig?.showForwardMessage = true;
       } else {
         widget.toolTipsConfig?.showForwardMessage = false;
@@ -1093,7 +1096,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
     ];
   }
 
-  _onMsgSendFailIconTap(V2TimMessage message, TUIChatSeparateViewModel model) {
+  void _onMsgSendFailIconTap(V2TimMessage message, TUIChatSeparateViewModel model) {
     final convID = model.conversationID;
     final convType = model.conversationType;
     MessageUtils.handleMessageError(
@@ -1167,7 +1170,9 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
           const SizedBox(
             height: 20,
           ),
-        if (isSelf && message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL)
+        if (isSelf &&
+            (message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL ||
+                (message.localCustomInt ?? 0) == 90001))
           Container(
               padding: const EdgeInsets.only(bottom: 3),
               margin: const EdgeInsets.only(right: 6),
