@@ -17,6 +17,11 @@ typedef MessageFunctionNullCallback = Function(V2TimValueCallback<V2TimMessage> 
 
 typedef MessageFunctionOptional = Future<V2TimMessage?> Function(V2TimMessage message);
 
+typedef MessageWillSendFunction = Future<V2TimMessage?> Function(
+    V2TimMessage message, [
+  V2TimMessage? repliedMessage,
+]);
+
 typedef MessageListFunction = Future<List<V2TimMessage>> Function(List<V2TimMessage> messageList);
 
 typedef MessageListFunctionAsync = List<V2TimMessage> Function(List<V2TimMessage> messageList);

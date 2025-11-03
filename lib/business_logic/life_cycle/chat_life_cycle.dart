@@ -13,7 +13,7 @@ class ChatLifeCycle {
 
   /// Before a new message will be sent.
   /// Returns null can block the message from sending.
-  // Future<V2TimMessage?> Function(V2TimMessage message, [V2TimMessage? repliedMessage]) messageWillSend;
+  MessageWillSendFunction messageWillSend;
 
   /// After a new message been sent.
   MessageFunctionNullCallback messageDidSend;
@@ -45,7 +45,7 @@ class ChatLifeCycle {
     this.shouldDeleteMessage = DefaultLifeCycle.defaultAsyncBooleanSolution,
     this.messageDidSend = DefaultLifeCycle.defaultNullCallbackSolution,
     this.didGetHistoricalMessageList = DefaultLifeCycle.defaultMessageListSolution,
-    // this.messageWillSend = DefaultLifeCycle.defaultTwoMessagesSolution,
+    this.messageWillSend = DefaultLifeCycle.defaultTwoMessagesSolution,
     this.modifiedMessageWillMount = DefaultLifeCycle.defaultMessageSolution,
     this.newMessageWillMount = DefaultLifeCycle.defaultMessageSolution,
     this.messageShouldMount = DefaultLifeCycle.defaultBooleanSolution,
