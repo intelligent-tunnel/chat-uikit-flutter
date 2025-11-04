@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:extended_text/extended_text.dart';
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -369,6 +370,16 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     final haveRepliedMessage = repliedMessage != null;
     if (haveRepliedMessage) {
       final String text = "${MessageUtils.getDisplayName(repliedMessage)}:${getAbstractMessage(repliedMessage)}";
+      final stickerConfig = widget.model.chatConfig.stickerPanelConfig;
+      final DefaultSpecialTextSpanBuilder spanBuilder = DefaultSpecialTextSpanBuilder(
+        isUseQQPackage: stickerConfig?.useQQStickerPackage ?? true,
+        isUseTencentCloudChatPackage: stickerConfig?.useTencentCloudChatStickerPackage ?? true,
+        isUseTencentCloudChatPackageOldKeys:
+            stickerConfig?.useTencentCloudChatStickerPackageOldKeys ?? false,
+        customEmojiStickerList: widget.customEmojiStickerList,
+        showAtBackground: true,
+        checkHttpLink: true,
+      );
       return Container(
         color: widget.backgroundColor ?? hexToColor("f5f5f6"),
         alignment: Alignment.centerLeft,
@@ -378,12 +389,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Text(
+              child: ExtendedText(
                 text,
                 softWrap: true,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: hexToColor("8f959e"), fontSize: 14),
+                style: TextStyle(color: hexToColor("8f959e"), fontSize: 14, height: 1.3),
+                specialTextSpanBuilder: spanBuilder,
               ),
             ),
             const SizedBox(
