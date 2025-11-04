@@ -135,14 +135,40 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
     }
   }
 
+  DefaultSpecialTextSpanBuilder _buildSpanBuilder() {
+    final StickerPanelConfig? stickerConfig =
+        widget.chatModel.chatConfig.stickerPanelConfig;
+    return DefaultSpecialTextSpanBuilder(
+      isUseQQPackage: stickerConfig?.useQQStickerPackage ?? true,
+      isUseTencentCloudChatPackage:
+          stickerConfig?.useTencentCloudChatStickerPackage ?? true,
+      isUseTencentCloudChatPackageOldKeys:
+          stickerConfig?.useTencentCloudChatStickerPackageOldKeys ?? false,
+      customEmojiStickerList: widget.customEmojiStickerList,
+      showAtBackground: true,
+      checkHttpLink: true,
+    );
+  }
+
+  TextStyle _defaultSummaryStyle(TUITheme? theme) {
+    return TextStyle(
+      fontSize: 12,
+      color: theme?.weakTextColor,
+      fontWeight: FontWeight.w400,
+      height: 1.3,
+    );
+  }
+
   Widget _defaultRawMessageText(String text, TUITheme? theme) {
-    return Text(text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-            fontSize: 12,
-            color: theme?.weakTextColor,
-            fontWeight: FontWeight.w400));
+    final style = _defaultSummaryStyle(theme);
+    return ExtendedText(
+      text,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      softWrap: true,
+      style: style,
+      specialTextSpanBuilder: _buildSpanBuilder(),
+    );
   }
 
   _renderMessageSummary(TUITheme? theme) {
@@ -203,10 +229,7 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
             ? widget.chatModel.abstractMessageBuilder!(message)
             : null;
     if (customAbstractMessage != null) {
-      return _defaultRawMessageText(
-        customAbstractMessage,
-        theme,
-      );
+      return _defaultRawMessageText(customAbstractMessage, theme);
     }
     switch (messageType) {
       case MessageElemType.V2TIM_ELEM_TYPE_CUSTOM:
@@ -214,7 +237,14 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
       case MessageElemType.V2TIM_ELEM_TYPE_SOUND:
         return _defaultRawMessageText(TIM_t("[语音消息]"), theme);
       case MessageElemType.V2TIM_ELEM_TYPE_TEXT:
-        return _defaultRawMessageText(message.textElem?.text ?? "", theme);
+        return ExtendedText(
+          message.textElem?.text ?? "",
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          softWrap: true,
+          style: _defaultSummaryStyle(theme),
+          specialTextSpanBuilder: _buildSpanBuilder(),
+        );
       case MessageElemType.V2TIM_ELEM_TYPE_FACE:
         return TIMUIKitFaceElem(
           model: widget.chatModel,
