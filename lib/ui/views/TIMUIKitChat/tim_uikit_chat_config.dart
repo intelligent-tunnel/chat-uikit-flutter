@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
@@ -5,6 +8,7 @@ import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_glo
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 
 import 'TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart';
+import 'tim_uikit_cloud_custom_data.dart';
 
 enum GroupReceptAllowType { work, public, meeting }
 
@@ -264,8 +268,19 @@ class TIMUIKitChatConfig {
   /// [Default]: false
   final bool isMemberCanAtAll;
 
+  /// Callback when tapping the replied (quoted) message preview.
+  /// Return `true` to indicate that the tap has been handled and skip the default
+  /// scroll-to-message behaviour.
+  final FutureOr<bool> Function(
+    BuildContext context,
+    V2TimMessage? rawMessage,
+    MessageRepliedData repliedMessage,
+    V2TimMessage message,
+  )? onTapReplyMessage;
+
   const TIMUIKitChatConfig(
       {this.onTapLink,
+      this.onTapReplyMessage,
       this.timeDividerConfig,
       this.desktopStickerPanelHeight = 400,
       this.mobileStickerPanelHeight,

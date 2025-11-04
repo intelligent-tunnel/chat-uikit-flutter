@@ -308,6 +308,24 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
     }
   }
 
+  Future<bool> _handleReplyTap(BuildContext context) async {
+    final callback = widget.chatModel.chatConfig.onTapReplyMessage;
+    final MessageRepliedData? replied =
+        repliedMessage ?? _getRepliedMessage();
+    if (callback == null || replied == null) {
+      return false;
+    }
+    try {
+      final result =
+          await callback(context, rawMessage, replied, widget.message);
+      return result == true;
+    } catch (e, stack) {
+      outputLogger.i("onTapReplyMessage failed: $e");
+      outputLogger.i(stack.toString());
+      return false;
+    }
+  }
+
   Widget? _renderPreviewWidget() {
     // If the link preview info from [localCustomData] is available, use it to render the preview card.
     // Otherwise, it will returns null.
@@ -396,7 +414,12 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
       constraints:
           BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.6),
       child: GestureDetector(
-        onTap: _jumpToRawMsg,
+        onTap: () async {
+          final handled = await _handleReplyTap(context);
+          if (!handled) {
+            _jumpToRawMsg();
+          }
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
