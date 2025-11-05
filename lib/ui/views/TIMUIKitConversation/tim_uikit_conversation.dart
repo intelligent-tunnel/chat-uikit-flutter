@@ -100,6 +100,11 @@ class TIMUIKitConversation extends StatefulWidget {
   /// Custom builder for each conversation line content.
   final ConversationLineItemBuilder? itemLineBuilder;
 
+  /// Whether to enable built-in pull-to-refresh on mobile.
+  /// If false, the widget will not wrap list with EasyRefresh, allowing host app
+  /// to provide its own refresh wrapper (e.g., pull_to_refresh).
+  final bool enableInnerRefresh;
+
   const TIMUIKitConversation(
       {Key? key,
       this.lifeCycle,
@@ -116,7 +121,8 @@ class TIMUIKitConversation extends StatefulWidget {
       this.topWidgetsBuilder,
       this.canSlideBuilder,
       this.listPadding,
-      this.itemLineBuilder})
+      this.itemLineBuilder,
+      this.enableInnerRefresh = true})
       : super(key: key);
 
   @override
@@ -548,13 +554,16 @@ class _TIMUIKitConversationState extends TIMUIKitState<TIMUIKitConversation> {
           return TUIKitScreenUtils.getDeviceWidget(
               context: context,
               defaultWidget: SlidableAutoCloseBehavior(
-                child: EasyRefresh(
-                  header: CustomizeBallPulseHeader(color: theme.primaryColor),
-                  onRefresh: () async {
-                    model.refresh();
-                  },
-                  child: conversationList(),
-                ),
+                child: widget.enableInnerRefresh
+                    ? EasyRefresh(
+                        header:
+                            CustomizeBallPulseHeader(color: theme.primaryColor),
+                        onRefresh: () async {
+                          model.refresh();
+                        },
+                        child: conversationList(),
+                      )
+                    : conversationList(),
               ),
               desktopWidget: Scrollbar(
                   controller: _autoScrollController,
