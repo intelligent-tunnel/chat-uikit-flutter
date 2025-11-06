@@ -734,24 +734,34 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
       model?.chatConfig = config!;
     }
     model?.lifeCycle = lifeCycle;
-    model?.initForEachConversation(
-      conversationType,
-      conversationID,
-      (String value) {
-        textFieldController?.textEditingController?.text = value;
-      },
-      preGroupMemberList: groupMemberList,
-      groupID: groupID,
-    );
     model?.showC2cMessageEditStatus = (conversationType == ConvType.c2c
         ? config?.showC2cMessageEditStatus ?? true
         : false);
-    loadData();
+    final TUIChatSeparateViewModel? initModel = model;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (initModel == null) {
+        return;
+      }
+      initModel.initForEachConversation(
+        conversationType,
+        conversationID,
+        (String value) {
+          textFieldController?.textEditingController?.text = value;
+        },
+        preGroupMemberList: groupMemberList,
+        groupID: groupID,
+      );
+      loadData(initModel);
+    });
   }
 
-  loadData() {
-    // if (model!.haveMoreData) {
-    model!.loadChatRecord(
+  loadData([TUIChatSeparateViewModel? targetModel]) {
+    final TUIChatSeparateViewModel? viewModel = targetModel ?? model;
+    if (viewModel == null) {
+      return;
+    }
+    // if (viewModel.haveMoreData) {
+    viewModel.loadChatRecord(
         count: kIsWeb ? 15 : HistoryMessageDartConstant.getCount);
     // }
   }

@@ -1484,8 +1484,11 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
   @override
   void dispose() {
     markMessageAsRead();
-    globalModel.unreadCountForTongue = 0;
-    globalModel.clearCurrentConversation();
+    final TUIChatGlobalModel global = globalModel;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      global.unreadCountForTongue = 0;
+    });
+    global.clearCurrentConversation();
     _isInit = false;
     super.dispose();
   }
