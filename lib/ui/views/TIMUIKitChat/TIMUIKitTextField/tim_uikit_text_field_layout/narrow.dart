@@ -562,7 +562,11 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     }
 
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Widget? repliedMessageCard = _buildRepliedMessage(widget.repliedMessage, isDarkMode: isDarkMode);
+    final bool shouldShowReplyCard =
+        !showSendSoundText && widget.repliedMessage != null;
+    final Widget? repliedMessageCard = shouldShowReplyCard
+        ? _buildRepliedMessage(widget.repliedMessage, isDarkMode: isDarkMode)
+        : null;
     final bool hasReplyCard = repliedMessageCard != null;
 
     _updatePanelMetrics(hasReplyCard);
