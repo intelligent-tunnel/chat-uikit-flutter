@@ -167,6 +167,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
   @override
   void initState() {
     super.initState();
+    widget.textEditingController.addListener(_handleTextEditingValueChanged);
     if (widget.controller != null) {
       _controllerListener = () {
         final actionType = widget.controller?.actionType;
@@ -175,6 +176,24 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
         }
       };
       widget.controller?.addListener(_controllerListener!);
+    }
+  }
+
+  void _handleTextEditingValueChanged() {
+    if (!mounted) {
+      return;
+    }
+    if (widget.textEditingController.text.isEmpty && showInputScrollbar) {
+      _updateInputScrollbar(forceHide: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant TIMUIKitTextFieldLayoutNarrow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.textEditingController != widget.textEditingController) {
+      oldWidget.textEditingController.removeListener(_handleTextEditingValueChanged);
+      widget.textEditingController.addListener(_handleTextEditingValueChanged);
     }
   }
 
@@ -288,6 +307,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     if (widget.controller != null && _controllerListener != null) {
       widget.controller?.removeListener(_controllerListener!);
     }
+    widget.textEditingController.removeListener(_handleTextEditingValueChanged);
     _textScrollController.dispose();
     super.dispose();
   }
@@ -351,6 +371,46 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
         fun(text);
       });
     };
+  }
+
+  void _updateInputScrollbar({bool forceHide = false}) {
+    if (!mounted) {
+      return;
+    }
+    if (forceHide) {
+      if (_textScrollController.hasClients &&
+          _textScrollController.position.pixels !=
+              _textScrollController.position.minScrollExtent) {
+        _textScrollController.jumpTo(
+          _textScrollController.position.minScrollExtent,
+        );
+      }
+      if (showInputScrollbar) {
+        setState(() {
+          showInputScrollbar = false;
+        });
+      }
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      if (!_textScrollController.hasClients) {
+        if (showInputScrollbar) {
+          setState(() {
+            showInputScrollbar = false;
+          });
+        }
+        return;
+      }
+      final bool needScrollbar = _textScrollController.position.maxScrollExtent > 0;
+      if (showInputScrollbar != needScrollbar) {
+        setState(() {
+          showInputScrollbar = needScrollbar;
+        });
+      }
+    });
   }
 
   String getAbstractMessage(V2TimMessage message) {
@@ -489,29 +549,10 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       final isEmpty = value.isEmpty;
       if (isEmpty) {
         widget.handleSoftKeyBoardDelete();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_textScrollController.hasClients &&
-              _textScrollController.position.pixels != _textScrollController.position.minScrollExtent) {
-            _textScrollController.jumpTo(_textScrollController.position.minScrollExtent);
-          }
-        });
+        _updateInputScrollbar(forceHide: true);
+      } else {
+        _updateInputScrollbar();
       }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_textScrollController.hasClients) {
-          if (showInputScrollbar) {
-            setState(() {
-              showInputScrollbar = false;
-            });
-          }
-          return;
-        }
-        final bool needScrollbar = _textScrollController.position.maxScrollExtent > 0;
-        if (showInputScrollbar != needScrollbar) {
-          setState(() {
-            showInputScrollbar = needScrollbar;
-          });
-        }
-      });
     }, const Duration(milliseconds: 80));
 
     final MediaQueryData data = MediaQuery.of(context);
@@ -593,6 +634,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                           controller: _textScrollController,
                           thumbVisibility: showInputScrollbar,
                           trackVisibility: showInputScrollbar,
+                          fadeDuration: Duration.zero,
+                          timeToFade: Duration.zero,
                           interactive: true,
                           thickness: 4,
                           radius: const Radius.circular(2),
@@ -629,6 +672,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                         showMoreButton = true;
                                       }
                                     });
+                                    _updateInputScrollbar(forceHide: true);
                                   },
                                   textAlignVertical: TextAlignVertical.center,
                                   decoration: InputDecoration(
@@ -737,6 +781,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                       showMoreButton = true;
                     });
                   }
+                  _updateInputScrollbar(forceHide: true);
                 },
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
