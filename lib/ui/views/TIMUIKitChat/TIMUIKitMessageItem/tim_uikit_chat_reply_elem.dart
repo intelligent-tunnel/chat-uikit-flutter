@@ -4,7 +4,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
@@ -562,7 +561,6 @@ class _ReplyVoicePreviewState extends State<_ReplyVoicePreview>
   );
   late final Animation<double> _waveAnimation =
       Tween<double>(begin: 0, end: 2 * math.pi).animate(_waveController);
-  StreamSubscription<PlayerState>? _playerSubscription;
   V2TimSoundElem? _soundElem;
   bool _isPlaying = false;
 
@@ -570,15 +568,6 @@ class _ReplyVoicePreviewState extends State<_ReplyVoicePreview>
   void initState() {
     super.initState();
     _soundElem = widget.message.soundElem;
-    _playerSubscription =
-        SoundPlayer.playStateListener(listener: (PlayerState state) {
-      if (state.processingState == ProcessingState.completed) {
-        if (widget.chatModel.currentPlayedMsgId == widget.message.msgID) {
-          widget.chatModel.currentPlayedMsgId = "";
-        }
-        _setPlaying(false);
-      }
-    });
     _prepareSoundElem();
   }
 
@@ -593,13 +582,7 @@ class _ReplyVoicePreviewState extends State<_ReplyVoicePreview>
 
   @override
   void dispose() {
-    _playerSubscription?.cancel();
     _waveController.dispose();
-    if (_isPlaying &&
-        widget.chatModel.currentPlayedMsgId == widget.message.msgID) {
-      SoundPlayer.stop();
-      widget.chatModel.currentPlayedMsgId = "";
-    }
     super.dispose();
   }
 
