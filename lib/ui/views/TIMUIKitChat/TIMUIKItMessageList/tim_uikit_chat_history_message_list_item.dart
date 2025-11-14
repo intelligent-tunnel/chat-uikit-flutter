@@ -681,8 +681,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
 
   Widget _selfRevokeEditMessageBuilder(theme, TUIChatSeparateViewModel model) {
     if (_isReEditHintDismissed(widget.message)) {
-      final String revokeText =
-          TIM_t("您撤回了一条消息，").replaceAll(RegExp(r'[，,]\s*$'), '');
+      final String revokeText = TIM_t("您撤回了一条消息，").replaceAll(RegExp(r'[，,]\s*$'), '');
       return Container(
           margin: const EdgeInsets.symmetric(vertical: 20),
           alignment: Alignment.center,
@@ -915,8 +914,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
     }
 
     final bool isGreetingLimitBlocked = (widget.message.localCustomInt ?? 0) == 90001;
-    final bool isSendFail = widget.message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL ||
-        isGreetingLimitBlocked;
+    final bool isSendFail = widget.message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL || isGreetingLimitBlocked;
 
     // 如果配置了显示回复消息，则需要根据消息状态来决定是否可以回复；如果配置了不显示回复消息，则不需要判断消息状态。
     if ((widget.toolTipsConfig?.showReplyMessage ?? true)) {
@@ -1171,8 +1169,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
             height: 20,
           ),
         if (isSelf &&
-            (message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL ||
-                (message.localCustomInt ?? 0) == 90001))
+            (message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL || (message.localCustomInt ?? 0) == 90001))
           Container(
               padding: const EdgeInsets.only(bottom: 3),
               margin: const EdgeInsets.only(right: 6),
@@ -1436,8 +1433,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
                                 crossAxisAlignment: (!isSelf &&
                                         message.elemType == MessageElemType.V2TIM_ELEM_TYPE_SOUND &&
                                         message.localCustomInt != null &&
-                                        message.localCustomInt !=
-                                            HistoryMessageDartConstant.read)
+                                        message.localCustomInt != HistoryMessageDartConstant.read)
                                     ? CrossAxisAlignment.center
                                     : CrossAxisAlignment.end,
                                 children: [
