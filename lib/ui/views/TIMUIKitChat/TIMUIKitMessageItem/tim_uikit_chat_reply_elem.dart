@@ -2,12 +2,16 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_sound_elem.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_sound_elem.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_model_tools.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/common_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
@@ -20,6 +24,7 @@ import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/TIMUIKitMessageReaction/tim_uikit_message_reaction_show_panel.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/main.dart';
@@ -31,6 +36,7 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/link_preview/models/link_pre
 import 'package:tencent_cloud_chat_uikit/ui/widgets/link_preview/widgets/link_preview.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/logger.dart';
 import 'package:tim_ui_kit_sticker_plugin/utils/tim_custom_face_data.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/sound_record.dart';
 
 const BorderRadius _kSelfBubbleRadius = BorderRadius.all(Radius.circular(12));
 const BorderRadius _kOtherBubbleRadius = BorderRadius.all(Radius.circular(12));
@@ -235,7 +241,13 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
       case MessageElemType.V2TIM_ELEM_TYPE_CUSTOM:
         return _defaultRawMessageText(TIM_t("[自定义]"), theme);
       case MessageElemType.V2TIM_ELEM_TYPE_SOUND:
-        return _defaultRawMessageText(TIM_t("[语音消息]"), theme);
+        if (message.soundElem == null) {
+          return _defaultRawMessageText(TIM_t("[语音消息]"), theme);
+        }
+        return _ReplyVoicePreview(
+          message: message,
+          chatModel: widget.chatModel,
+        );
       case MessageElemType.V2TIM_ELEM_TYPE_TEXT:
         return ExtendedText(
           message.textElem?.text ?? "",
@@ -340,8 +352,7 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
 
   Future<bool> _handleReplyTap(BuildContext context) async {
     final callback = widget.chatModel.chatConfig.onTapReplyMessage;
-    final MessageRepliedData? replied =
-        repliedMessage ?? _getRepliedMessage();
+    final MessageRepliedData? replied = repliedMessage ?? _getRepliedMessage();
     if (callback == null || replied == null) {
       return false;
     }
@@ -527,6 +538,270 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
               TIMUIKitMessageReactionShowPanel(message: widget.message)
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ReplyVoicePreview extends StatefulWidget {
+  final V2TimMessage message;
+  final TUIChatSeparateViewModel chatModel;
+
+  const _ReplyVoicePreview({required this.message, required this.chatModel});
+
+  @override
+  State<_ReplyVoicePreview> createState() => _ReplyVoicePreviewState();
+}
+
+class _ReplyVoicePreviewState extends State<_ReplyVoicePreview>
+    with SingleTickerProviderStateMixin {
+  final MessageService _messageService = serviceLocator<MessageService>();
+  late final AnimationController _waveController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+  late final Animation<double> _waveAnimation =
+      Tween<double>(begin: 0, end: 2 * math.pi).animate(_waveController);
+  StreamSubscription<PlayerState>? _playerSubscription;
+  V2TimSoundElem? _soundElem;
+  bool _isPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _soundElem = widget.message.soundElem;
+    _playerSubscription =
+        SoundPlayer.playStateListener(listener: (PlayerState state) {
+      if (state.processingState == ProcessingState.completed) {
+        if (widget.chatModel.currentPlayedMsgId == widget.message.msgID) {
+          widget.chatModel.currentPlayedMsgId = "";
+        }
+        _setPlaying(false);
+      }
+    });
+    _prepareSoundElem();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReplyVoicePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.message.msgID != widget.message.msgID) {
+      _soundElem = widget.message.soundElem;
+      _prepareSoundElem();
+    }
+  }
+
+  @override
+  void dispose() {
+    _playerSubscription?.cancel();
+    _waveController.dispose();
+    if (_isPlaying &&
+        widget.chatModel.currentPlayedMsgId == widget.message.msgID) {
+      SoundPlayer.stop();
+      widget.chatModel.currentPlayedMsgId = "";
+    }
+    super.dispose();
+  }
+
+  Future<V2TimSoundElem?> _prepareSoundElem() async {
+    final String? msgID = widget.message.msgID;
+    if (_soundElem != null &&
+        _soundElem!.url != null &&
+        _soundElem!.url!.isNotEmpty) {
+      return _soundElem;
+    }
+    if (msgID == null || msgID.isEmpty) {
+      return _soundElem;
+    }
+    try {
+      final response = await _messageService.getMessageOnlineUrl(msgID: msgID);
+      final V2TimSoundElem? updated = response.data?.soundElem;
+      if (updated != null) {
+        _soundElem = updated;
+        widget.message.soundElem = _soundElem;
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    } catch (_) {}
+    return _soundElem;
+  }
+
+  void _setPlaying(bool playing) {
+    if (_isPlaying == playing) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isPlaying = playing;
+      if (_isPlaying) {
+        if (!_waveController.isAnimating) {
+          _waveController.repeat();
+        }
+      } else {
+        _waveController.stop();
+      }
+    });
+  }
+
+  Future<void> _togglePlay() async {
+    final String? msgID = widget.message.msgID;
+    if (msgID == null || msgID.isEmpty) {
+      return;
+    }
+    if (!SoundPlayer.isInit) {
+      SoundPlayer.initSoundPlayer();
+    }
+    if (widget.chatModel.currentPlayedMsgId == msgID && _isPlaying) {
+      SoundPlayer.stop();
+      widget.chatModel.currentPlayedMsgId = "";
+      _setPlaying(false);
+      return;
+    }
+    final V2TimSoundElem? soundElem = await _prepareSoundElem();
+    final String? url = soundElem?.url;
+    if (url == null || url.isEmpty) {
+      return;
+    }
+    try {
+      widget.chatModel.currentPlayedMsgId = msgID;
+      SoundPlayer.play(url: url);
+      _setPlaying(true);
+    } catch (_) {
+      widget.chatModel.currentPlayedMsgId = "";
+      _setPlaying(false);
+    }
+  }
+
+  String _formatDuration(int? seconds) {
+    final int safeSeconds = (seconds ?? 0).clamp(0, 3599);
+    final int minutes = safeSeconds ~/ 60;
+    final int remain = safeSeconds % 60;
+    return "${minutes.toString()}:${remain.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool shouldPlaying =
+        widget.chatModel.currentPlayedMsgId == widget.message.msgID;
+    if (shouldPlaying != _isPlaying) {
+      _setPlaying(shouldPlaying);
+    }
+    final String durationLabel = _formatDuration(
+        _soundElem?.duration ?? widget.message.soundElem?.duration);
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        _togglePlay();
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            height: 20,
+            child: _ReplyVoiceWaveform(
+              animation: _waveAnimation,
+              active: _isPlaying,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            durationLabel,
+            style: const TextStyle(
+              color: Color(0xFF101010),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReplyVoiceWaveform extends StatelessWidget {
+  const _ReplyVoiceWaveform({required this.animation, required this.active});
+
+  final Animation<double> animation;
+  final bool active;
+
+  static const List<double> _barHeights = <double>[
+    4,
+    6,
+    10,
+    16,
+    22,
+    18,
+    12,
+    8,
+    6,
+    4
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final double progress = animation.value;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(_barHeights.length, (index) {
+            return _ReplyWaveBar(
+              height: _computeHeight(_barHeights[index], progress, index),
+              opacity: _computeOpacity(progress, index),
+              active: active,
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  double _computeHeight(double base, double progress, int index) {
+    if (!active) {
+      return base;
+    }
+    final double phase = progress + index * 0.35;
+    final double wave = (math.sin(phase) + 1) / 2;
+    return base + wave * 12;
+  }
+
+  double _computeOpacity(double progress, int index) {
+    if (!active) {
+      return 0.4;
+    }
+    final double phase = progress + index * 0.4;
+    final double wave = (math.sin(phase) + 1) / 2;
+    return 0.5 + wave * 0.5;
+  }
+}
+
+class _ReplyWaveBar extends StatelessWidget {
+  const _ReplyWaveBar(
+      {required this.height, required this.opacity, required this.active});
+
+  final double height;
+  final double opacity;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    const Color baseColor = Color(0xFFFBD455);
+    final Color barColor = active
+        ? baseColor.withValues(alpha: opacity.clamp(0.5, 1.0))
+        : baseColor.withValues(alpha: 0.4);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      width: 6,
+      height: height.clamp(4, 32),
+      decoration: BoxDecoration(
+        color: barColor,
+        borderRadius: BorderRadius.circular(3),
       ),
     );
   }
