@@ -15,11 +15,16 @@ class ConversationLifeCycle {
   /// Before conversation list will mount or update to conversation page.
   ConversationListFunction conversationListWillMount;
 
+  /// Whether TUIKit should keep the order returned from [conversationListWillMount].
+  /// When true, SDK 将不会再做默认排序，交由业务自行决定顺序。
+  bool keepResultOrder;
+
   ConversationLifeCycle({
     this.conversationListWillMount =
         DefaultLifeCycle.defaultConversationListSolution,
     this.shouldClearHistoricalMessageForConversation =
         DefaultLifeCycle.defaultAsyncBooleanSolution,
     this.shouldDeleteConversation = DefaultLifeCycle.defaultAsyncBooleanSolution,
+    this.keepResultOrder = false,
   });
 }

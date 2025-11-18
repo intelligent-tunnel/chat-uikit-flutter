@@ -62,7 +62,12 @@ class TUIConversationViewModel extends ChangeNotifier {
   String _nextSeq = "0";
   ConversationLifeCycle? _lifeCycle;
 
+  bool get _keepResultOrder => _lifeCycle?.keepResultOrder ?? false;
+
   List<V2TimConversation?> get conversationList {
+    if (_keepResultOrder) {
+      return _conversationList;
+    }
     if (PlatformUtils().isWeb) {
       try {
         _conversationList.sort((a, b) {
@@ -162,6 +167,9 @@ class TUIConversationViewModel extends ChangeNotifier {
     Future.microtask(() async {
       List<V2TimConversation?> processedList =
           List<V2TimConversation?>.from(_rawConversationList);
+      if (_keepResultOrder) {
+        _sortConversationListLikeDefault(processedList);
+      }
       processedList = removeDuplicates<V2TimConversation?>(
           processedList, (item1, item2) => item1?.conversationID == item2?.conversationID);
       final ConversationLifeCycle? lifeCycle = _lifeCycle;
@@ -206,8 +214,13 @@ class TUIConversationViewModel extends ChangeNotifier {
       }
       _rawConversationList = removeDuplicates<V2TimConversation?>(
           combinedConversationList, (item1, item2) => item1?.conversationID == item2?.conversationID);
+      List<V2TimConversation?> sourceList = _rawConversationList;
+      if (_keepResultOrder) {
+        sourceList = List<V2TimConversation?>.from(_rawConversationList);
+        _sortConversationListLikeDefault(sourceList);
+      }
       final List<V2TimConversation?> finalConversationList =
-          await _lifeCycle?.conversationListWillMount(_rawConversationList) ?? _rawConversationList;
+          await _lifeCycle?.conversationListWillMount(sourceList) ?? sourceList;
       _conversationList = removeDuplicates<V2TimConversation?>(
           finalConversationList, (item1, item2) => item1?.conversationID == item2?.conversationID);
       notifyListeners();
@@ -350,5 +363,48 @@ class TUIConversationViewModel extends ChangeNotifier {
     _nextSeq = "0";
     _haveMoreData = true;
     loadData(count: count);
+  }
+
+  void _sortConversationListLikeDefault(List<V2TimConversation?> list) {
+    if (list.isEmpty) {
+      return;
+    }
+    if (PlatformUtils().isWeb) {
+      try {
+        list.sort((a, b) {
+          final int aTimestamp = _resolveTimestamp(a);
+          final int bTimestamp = _resolveTimestamp(b);
+          return bTimestamp.compareTo(aTimestamp);
+        });
+        final List<V2TimConversation?> pinnedConversation =
+            list.where((element) => element?.isPinned == true).toList();
+        list.removeWhere((element) => element?.isPinned == true);
+        list.insertAll(0, pinnedConversation);
+      } catch (_) {}
+    } else {
+      list.sort((a, b) {
+        final int aKey = _resolveOrderKey(a);
+        final int bKey = _resolveOrderKey(b);
+        return bKey.compareTo(aKey);
+      });
+    }
+  }
+
+  int _resolveOrderKey(V2TimConversation? conversation) {
+    if (conversation == null) {
+      return 0;
+    }
+    final int? orderKey = conversation.orderkey;
+    if (orderKey != null) {
+      return orderKey;
+    }
+    return _resolveTimestamp(conversation);
+  }
+
+  int _resolveTimestamp(V2TimConversation? conversation) {
+    if (conversation == null) {
+      return 0;
+    }
+    return conversation.lastMessage?.timestamp ?? 0;
   }
 }
