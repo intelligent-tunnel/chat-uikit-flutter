@@ -1216,10 +1216,18 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       return null;
     }
 
+    final oldMsgID = message.msgID;
+
     currentHistoryMsgList.removeWhere((element) => element.msgID == message.msgID);
     globalModel.setMessageList(convID, currentHistoryMsgList);
 
     message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    // Ensure the message has a client ID for UI updates
+    if (message.id == null || message.id!.isEmpty) {
+      message.id = DateTime.now().millisecondsSinceEpoch.toString();
+    }
+    final String tempClientID = message.id!;
+
     final V2TimMessage? processed = await _invokeMessageWillSend(message);
     if (processed == null) {
       return null;
@@ -1240,10 +1248,25 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
 
     addSendingMessageID(message.msgID);
     // 重发该消息
-    final res = await _messageService.reSendMessage(msgID: message.msgID ?? "", onlineUserOnly: false);
-    removeSendingMessageID(message.msgID ?? "");
+    final res = await _messageService.reSendMessage(msgID: oldMsgID ?? "", onlineUserOnly: false);
+    removeSendingMessageID(oldMsgID ?? ""); // Use oldMsgID as that was the key
+
     if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
-      globalModel.updateMessage(res, convID, message.msgID!, convType, groupType, setInputField);
+      // Directly find and replace the temp item we added, avoiding updateMessage ambiguity
+      final index = currentHistoryMsgList.indexWhere((e) => e.id == tempClientID);
+      if (index != -1 && res.data != null) {
+        currentHistoryMsgList[index] = res.data!;
+        globalModel.setMessageList(convID, currentHistoryMsgList);
+      } else {
+        // Fallback if not found (rare)
+        globalModel.updateMessage(res, convID, tempClientID, convType, groupType, setInputField);
+      }
+
+      // If the msgID changed after resending (and success), delete the old message from local storage
+      // to prevent it from reappearing after reload.
+      if (res.code == 0 && res.data != null && res.data!.msgID != oldMsgID && oldMsgID != null) {
+        _messageService.deleteMessages(msgIDs: [oldMsgID], webMessageInstanceList: []);
+      }
     }
 
     if (lifeCycle?.messageDidSend != null) {
