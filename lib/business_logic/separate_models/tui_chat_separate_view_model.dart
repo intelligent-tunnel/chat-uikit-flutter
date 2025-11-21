@@ -1217,9 +1217,19 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     }
 
     final oldMsgID = message.msgID;
+    final bool isGreetingBlocked = (message.localCustomInt ?? 0) == 90001;
 
     currentHistoryMsgList.removeWhere((element) => element.msgID == message.msgID);
     globalModel.setMessageList(convID, currentHistoryMsgList);
+
+    if (isGreetingBlocked) {
+      return _reSendGreetingBlockedMessage(
+        message: message,
+        convID: convID,
+        convType: convType,
+        oldMsgID: oldMsgID,
+      );
+    }
 
     message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
     // Ensure the message has a client ID for UI updates
@@ -1273,6 +1283,81 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       lifeCycle!.messageDidSend(res);
     }
     return res;
+  }
+
+  /// 处理被打招呼拦截的失败消息重发。
+  /// [message] 为拦截失败的消息，[convID]/[convType] 为会话信息，[oldMsgID] 用于清理旧本地记录。
+  /// 返回新的发送结果，如内容无法识别则复原原消息并返回失败结果。
+  Future<V2TimValueCallback<V2TimMessage>?> _reSendGreetingBlockedMessage({
+    required V2TimMessage message,
+    required String convID,
+    required ConvType convType,
+    String? oldMsgID,
+  }) async {
+    final String? text = message.textElem?.text;
+    if (text != null && text.trim().isNotEmpty) {
+      await _deleteGreetingBlockedLocalMessage(oldMsgID);
+      final result = await sendTextMessage(text: text, convID: convID, convType: convType);
+      return result ?? _fallbackGreetingResend(message, convID);
+    }
+
+    final faceElem = message.faceElem;
+    if (faceElem != null) {
+      final String data = faceElem.data ?? '';
+      final int? faceIndex = faceElem.index;
+      if (data.isNotEmpty && faceIndex != null) {
+        await _deleteGreetingBlockedLocalMessage(oldMsgID);
+        final result = await sendFaceMessage(
+          index: faceIndex,
+          data: data,
+          convID: convID,
+          convType: convType,
+        );
+        return result ?? _fallbackGreetingResend(message, convID);
+      }
+    }
+
+    final String? customData = message.customElem?.data;
+    if (customData != null && customData.isNotEmpty) {
+      await _deleteGreetingBlockedLocalMessage(oldMsgID);
+      final result = await sendCustomMessage(
+        data: customData,
+        convID: convID,
+        convType: convType,
+      );
+      return result ?? _fallbackGreetingResend(message, convID);
+    }
+
+    await _deleteGreetingBlockedLocalMessage(oldMsgID);
+    return _fallbackGreetingResend(message, convID);
+  }
+
+  /// 删除被拦截消息的本地记录，防止刷新后重新出现。
+  /// [msgID] 为需要清理的本地消息 ID，空则跳过处理。
+  Future<void> _deleteGreetingBlockedLocalMessage(String? msgID) async {
+    if (msgID == null || msgID.isEmpty) {
+      return;
+    }
+    await _messageService.deleteMessages(
+      msgIDs: [msgID],
+      webMessageInstanceList: [],
+    );
+  }
+
+  /// 构建打招呼拦截重发失败的兜底结果，并把原消息重新插回列表。
+  /// [message] 指原始失败消息，[convID] 为对应的会话 ID。
+  /// 返回包装后的失败结果供上层处理。
+  V2TimValueCallback<V2TimMessage> _fallbackGreetingResend(
+    V2TimMessage message,
+    String convID,
+  ) {
+    final List<V2TimMessage> fallbackList = getOriginMessageList();
+    globalModel.setMessageList(convID, [message, ...fallbackList]);
+    return V2TimValueCallback<V2TimMessage>(
+      code: 1,
+      desc: 'unsupported greeting blocked resend',
+      data: message,
+    );
   }
 
   Future<V2TimValueCallback<V2TimMessage>?> sendTextMessage(
