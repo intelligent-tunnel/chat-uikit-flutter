@@ -150,9 +150,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
                 margin: const EdgeInsets.only(bottom: 4),
                 decoration:
                     const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(5))),
-                child: SvgPicture.asset(
-                  "images/photo.svg",
-                  package: 'tencent_cloud_chat_uikit',
+                child: Image.asset(
+                  'assets/images/chat/album.png',
                   height: 64,
                   width: 64,
                 ),
@@ -174,9 +173,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
                 margin: const EdgeInsets.only(bottom: 4),
                 decoration:
                     const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(5))),
-                child: SvgPicture.asset(
-                  "images/screen.svg",
-                  package: 'tencent_cloud_chat_uikit',
+                child: Image.asset(
+                  'assets/images/chat/photo.png',
                   height: 64,
                   width: 64,
                 ),
@@ -209,9 +207,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
               width: 64,
               margin: const EdgeInsets.only(bottom: 4),
               decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(5))),
-              child: SvgPicture.asset(
-                "images/photo.svg",
-                package: 'tencent_cloud_chat_uikit',
+              child: Image.asset(
+                'assets/images/chat/album.png',
                 height: 64,
                 width: 64,
               ),
@@ -228,9 +225,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
               width: 64,
               margin: const EdgeInsets.only(bottom: 4),
               decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(5))),
-              child: SvgPicture.asset(
-                "images/screen.svg",
-                package: 'tencent_cloud_chat_uikit',
+              child: Image.asset(
+                'assets/images/chat/photo.png',
                 height: 64,
                 width: 64,
               ),
@@ -271,9 +267,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
               width: 64,
               margin: const EdgeInsets.only(bottom: 4),
               decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(5))),
-              child: SvgPicture.asset(
-                "images/photo.svg",
-                package: 'tencent_cloud_chat_uikit',
+              child: Image.asset(
+                'assets/images/chat/album.png',
                 height: 64,
                 width: 64,
               ),
@@ -760,11 +755,9 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     final screenWidth = MediaQuery.of(context).size.width;
     return Container(
       height: widget.height ?? 248,
+      margin: EdgeInsets.only(top: 12),
       decoration: BoxDecoration(
-        // color: hexToColor("EBF0F6"),
-        border: Border(
-          top: BorderSide(width: 1, color: Colors.grey.shade300),
-        ),
+        color: const Color(0xFFF8F8F8),
       ),
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
       width: screenWidth,
