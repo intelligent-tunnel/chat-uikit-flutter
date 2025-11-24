@@ -94,6 +94,16 @@ class TIMUIKitMessageTooltip extends StatefulWidget {
 class TIMUIKitMessageTooltipState
     extends TIMUIKitState<TIMUIKitMessageTooltip> {
   static final RegExp _englishLetterPattern = RegExp(r'[A-Za-z]');
+  static final RegExp _emojiPattern = RegExp(
+    r'[\u{1F300}-\u{1F5FF}]|[\u{1F600}-\u{1F64F}]|'
+    r'[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{27BF}]|'
+    r'[\u{1F900}-\u{1F9FF}]|[\u{1FA70}-\u{1FAFF}]|'
+    r'[\u{1F1E6}-\u{1F1FF}]',
+    unicode: true,
+  );
+  static final RegExp _emojiConnectorPattern = RegExp(r'[\u200d\ufe0f]');
+  static final RegExp _stickerTokenPattern =
+      RegExp(r'\[[^\[\]\s]+\]');
   final TUIChatGlobalModel globalModal = serviceLocator<TUIChatGlobalModel>();
   final TUISelfInfoViewModel selfInfoViewModel =
       serviceLocator<TUISelfInfoViewModel>();
@@ -113,6 +123,23 @@ class TIMUIKitMessageTooltipState
       return false;
     }
     return _englishLetterPattern.hasMatch(text);
+  }
+
+  bool _isEmojiOnly(String? text) {
+    if (text == null) {
+      return false;
+    }
+    final String trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    final String withoutConnector =
+        trimmed.replaceAll(_emojiConnectorPattern, '');
+    final String withoutStickers =
+        withoutConnector.replaceAll(_stickerTokenPattern, '');
+    final String stripped =
+        withoutStickers.replaceAll(_emojiPattern, '');
+    return stripped.trim().isEmpty;
   }
 
   hasFile() {
@@ -210,11 +237,19 @@ class TIMUIKitMessageTooltipState
     final tooltipsConfig = widget.toolTipsConfig;
     final bool isTextMessage =
         widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_TEXT;
-    final messageCanCopy = widget.message.elemType ==
+    final String textContent = widget.message.textElem?.text ?? '';
+    final bool isOneToOneChat =
+        widget.model.conversationType == ConvType.c2c;
+    final bool isEmojiOnlyText =
+        isOneToOneChat && isTextMessage && _isEmojiOnly(textContent);
+    bool messageCanCopy = widget.message.elemType ==
             MessageElemType.V2TIM_ELEM_TYPE_TEXT ||
         (isDesktopScreen &&
             widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
             fileBeenDownloaded);
+    if (isEmojiOnlyText) {
+      messageCanCopy = false;
+    }
     bool showTranslation = true;
     bool hasTranslatedText = false;
     if (widget.message.localCustomData != null) {
@@ -229,8 +264,12 @@ class TIMUIKitMessageTooltipState
       }
     }
     final bool containsEnglishLetter =
-        isTextMessage && _containsEnglishLetter(widget.message.textElem?.text);
-    if (isTextMessage && !containsEnglishLetter && !hasTranslatedText) {
+        isTextMessage && _containsEnglishLetter(textContent);
+    if (isEmojiOnlyText) {
+      showTranslation = false;
+    } else if (isTextMessage &&
+        !containsEnglishLetter &&
+        !hasTranslatedText) {
       showTranslation = false;
     }
 
@@ -326,7 +365,7 @@ class TIMUIKitMessageTooltipState
     }
 
     // 如果已存在翻译结果，替换“翻译”为“取消翻译”（仅文本消息）
-    if (hasTranslatedText && isTextMessage) {
+    if (hasTranslatedText && isTextMessage && !isEmojiOnlyText) {
       defaultFormattedTipsList.add(
         MessageToolTipItem(
           label: TIM_t("取消翻译"),
