@@ -93,6 +93,7 @@ class TIMUIKitMessageTooltip extends StatefulWidget {
 
 class TIMUIKitMessageTooltipState
     extends TIMUIKitState<TIMUIKitMessageTooltip> {
+  static final RegExp _englishLetterPattern = RegExp(r'[A-Za-z]');
   final TUIChatGlobalModel globalModal = serviceLocator<TUIChatGlobalModel>();
   final TUISelfInfoViewModel selfInfoViewModel =
       serviceLocator<TUISelfInfoViewModel>();
@@ -105,6 +106,13 @@ class TIMUIKitMessageTooltipState
     super.initState();
     hasFile();
     isShowMoreSticker = widget.isShowMoreSticker;
+  }
+
+  bool _containsEnglishLetter(String? text) {
+    if (text == null || text.trim().isEmpty) {
+      return false;
+    }
+    return _englishLetterPattern.hasMatch(text);
   }
 
   hasFile() {
@@ -200,12 +208,15 @@ class TIMUIKitMessageTooltipState
     final shouldShowForwardAction = !(widget.message.customElem?.data != null &&
         MessageUtils.isCallingData(widget.message.customElem!.data!));
     final tooltipsConfig = widget.toolTipsConfig;
+    final bool isTextMessage =
+        widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_TEXT;
     final messageCanCopy = widget.message.elemType ==
             MessageElemType.V2TIM_ELEM_TYPE_TEXT ||
         (isDesktopScreen &&
             widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
             fileBeenDownloaded);
     bool showTranslation = true;
+    bool hasTranslatedText = false;
     if (widget.message.localCustomData != null) {
       final LocalCustomDataModel localCustomData = LocalCustomDataModel.fromMap(
           json.decode(
@@ -213,8 +224,14 @@ class TIMUIKitMessageTooltipState
                   "{}"));
       if (localCustomData.translatedText != null &&
           localCustomData.translatedText != "") {
+        hasTranslatedText = true;
         showTranslation = false;
       }
+    }
+    final bool containsEnglishLetter =
+        isTextMessage && _containsEnglishLetter(widget.message.textElem?.text);
+    if (isTextMessage && !containsEnglishLetter && !hasTranslatedText) {
+      showTranslation = false;
     }
 
     final dynamicQuote =
@@ -302,16 +319,14 @@ class TIMUIKitMessageTooltipState
           return tooltipsConfig.showRecallMessage;
         }
         if (type == "translate") {
-          return tooltipsConfig.showTranslation &&
-              widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_TEXT;
+          return tooltipsConfig.showTranslation && isTextMessage;
         }
         return true;
       }).toList();
     }
 
     // 如果已存在翻译结果，替换“翻译”为“取消翻译”（仅文本消息）
-    if (!showTranslation &&
-        widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_TEXT) {
+    if (hasTranslatedText && isTextMessage) {
       defaultFormattedTipsList.add(
         MessageToolTipItem(
           label: TIM_t("取消翻译"),
