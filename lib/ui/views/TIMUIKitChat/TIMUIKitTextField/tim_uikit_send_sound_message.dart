@@ -274,13 +274,15 @@ class _SendSoundMessageState extends TIMUIKitState<SendSoundMessage> {
       required TUIChatSeparateViewModel model}) {
     final convID = widget.conversationID;
     final convType = widget.conversationType;
+    final int safeDuration =
+        min(duration, _maxRecordDuration.inSeconds); // 限制录音长度不超过 60 秒
 
-    if (duration > 0) {
+    if (safeDuration > 0) {
       if (!isCancelSend) {
         MessageUtils.handleMessageError(
             model.sendSoundMessage(
                 soundPath: path,
-                duration: duration,
+                duration: safeDuration,
                 convID: convID,
                 convType: convType),
             context);
