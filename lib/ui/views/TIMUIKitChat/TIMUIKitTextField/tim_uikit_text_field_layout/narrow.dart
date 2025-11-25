@@ -195,6 +195,9 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       oldWidget.textEditingController.removeListener(_handleTextEditingValueChanged);
       widget.textEditingController.addListener(_handleTextEditingValueChanged);
     }
+    if (widget.repliedMessage != oldWidget.repliedMessage && widget.repliedMessage != null) {
+      _collapseBottomPanelsForReply();
+    }
   }
 
   void setSendButton() {
@@ -222,6 +225,18 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
         showEmojiPanel = false;
       });
     }
+  }
+
+  void _collapseBottomPanelsForReply() {
+    if (!showMore && !showEmojiPanel && !showSendSoundText) {
+      return;
+    }
+    setState(() {
+      showMore = false;
+      showEmojiPanel = false;
+      showSendSoundText = false;
+    });
+    widget.focusNode.requestFocus();
   }
 
   Widget _getBottomContainer(TUITheme theme) {
