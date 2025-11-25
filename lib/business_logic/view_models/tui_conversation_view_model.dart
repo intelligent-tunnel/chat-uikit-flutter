@@ -1,6 +1,7 @@
 // ignore_for_file: unnecessary_getters_setters
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -68,20 +69,7 @@ class TUIConversationViewModel extends ChangeNotifier {
     if (_keepResultOrder) {
       return _conversationList;
     }
-    if (PlatformUtils().isWeb) {
-      try {
-        _conversationList.sort((a, b) {
-          return b!.lastMessage!.timestamp!.compareTo(a!.lastMessage!.timestamp!);
-        });
-
-        final pinnedConversation = _conversationList.where((element) => element?.isPinned == true).toList();
-        _conversationList.removeWhere((element) => element?.isPinned == true);
-        _conversationList = [...pinnedConversation, ..._conversationList];
-        // ignore: empty_catches
-      } catch (e) {}
-    } else {
-      _conversationList.sort((a, b) => b!.orderkey!.compareTo(a!.orderkey!));
-    }
+    _sortConversationListLikeDefault(_conversationList);
     return _conversationList;
   }
 
@@ -369,42 +357,43 @@ class TUIConversationViewModel extends ChangeNotifier {
     if (list.isEmpty) {
       return;
     }
-    if (PlatformUtils().isWeb) {
-      try {
-        list.sort((a, b) {
-          final int aTimestamp = _resolveTimestamp(a);
-          final int bTimestamp = _resolveTimestamp(b);
-          return bTimestamp.compareTo(aTimestamp);
-        });
-        final List<V2TimConversation?> pinnedConversation =
-            list.where((element) => element?.isPinned == true).toList();
-        list.removeWhere((element) => element?.isPinned == true);
-        list.insertAll(0, pinnedConversation);
-      } catch (_) {}
-    } else {
-      list.sort((a, b) {
-        final int aKey = _resolveOrderKey(a);
-        final int bKey = _resolveOrderKey(b);
-        return bKey.compareTo(aKey);
-      });
-    }
+    list.sort((a, b) {
+      final bool aPinned = a?.isPinned ?? false;
+      final bool bPinned = b?.isPinned ?? false;
+      if (aPinned != bPinned) {
+        return bPinned ? 1 : -1;
+      }
+      final int aKey = _resolveOrderKey(a);
+      final int bKey = _resolveOrderKey(b);
+      return bKey.compareTo(aKey);
+    });
   }
 
   int _resolveOrderKey(V2TimConversation? conversation) {
     if (conversation == null) {
       return 0;
     }
-    final int? orderKey = conversation.orderkey;
-    if (orderKey != null) {
-      return orderKey;
+    final int draftTimestamp = conversation.draftTimestamp ?? 0;
+    final int lastMessageTimestamp = conversation.lastMessage?.timestamp ?? 0;
+    final int activityTimestamp = max(draftTimestamp, lastMessageTimestamp);
+    if (activityTimestamp > 0) {
+      return activityTimestamp;
     }
-    return _resolveTimestamp(conversation);
+    return _normalizeOrderKey(conversation);
   }
 
-  int _resolveTimestamp(V2TimConversation? conversation) {
+  int _normalizeOrderKey(V2TimConversation? conversation) {
     if (conversation == null) {
       return 0;
     }
-    return conversation.lastMessage?.timestamp ?? 0;
+    final int orderKey = conversation.orderkey ?? 0;
+    if (orderKey <= 0) {
+      return 0;
+    }
+    const int pinnedFlag = 1 << 62;
+    if (orderKey >= pinnedFlag) {
+      return orderKey - pinnedFlag;
+    }
+    return orderKey;
   }
 }
