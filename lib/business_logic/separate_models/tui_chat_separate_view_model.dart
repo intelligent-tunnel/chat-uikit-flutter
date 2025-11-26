@@ -25,7 +25,8 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_info.dart'
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_full_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_group_member_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_message_read_member_list.dart'
-    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_group_message_read_member_list.dart';
+    if (dart.library.html)
+        'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_group_message_read_member_list.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_change_info.dart'
@@ -1070,7 +1071,12 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     if (await tools.hasZeroSize(filePath ?? "")) {
       final CoreServicesImpl _coreServices = serviceLocator<CoreServicesImpl>();
       _coreServices.callOnCallback(
-          TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: "不支持 0KB 文件的传输", infoCode: 6660417));
+        TIMCallback(
+          type: TIMCallbackType.INFO,
+          infoRecommendText: "不支持 0KB 文件的传输",
+          infoCode: 6660417,
+        ),
+      );
       return null;
     }
     final fileMessageInfo = await _messageService.createFileMessage(
@@ -1179,8 +1185,12 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       final convID = conversation.groupID ?? conversation.userID ?? "";
       final convType = conversation.type;
       List<V2TimMessage> currentHistoryMsgList = globalModel.messageListMap[conversationID] ?? [];
-      final mergerMessageInfo = await _messageService.createMergerMessage(
-          msgIDList: msgIDList, title: title, abstractList: abstractList, compatibleText: TIM_t("该版本不支持此消息"));
+    final mergerMessageInfo = await _messageService.createMergerMessage(
+      msgIDList: msgIDList,
+      title: title,
+      abstractList: abstractList,
+      compatibleText: TIM_t("该版本不支持此消息"),
+    );
       final messageInfo = mergerMessageInfo!.messageInfo;
       if (messageInfo != null) {
         tools.setUserInfoForMessage(messageInfo, mergerMessageInfo.id);
@@ -1211,16 +1221,17 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required String convID,
     required ConvType convType,
   }) async {
-    List<V2TimMessage> currentHistoryMsgList = getOriginMessageList();
+    final List<V2TimMessage> currentHistoryMsgList = getOriginMessageList();
     if (currentHistoryMsgList.isEmpty) {
       return null;
     }
 
-    final oldMsgID = message.msgID;
+    final String? oldMsgID = message.msgID;
     final bool isGreetingBlocked = (message.localCustomInt ?? 0) == 90001;
 
     currentHistoryMsgList.removeWhere((element) => element.msgID == message.msgID);
     globalModel.setMessageList(convID, currentHistoryMsgList);
+    await _deleteLocalMessage(oldMsgID);
 
     if (isGreetingBlocked) {
       return _reSendGreetingBlockedMessage(
@@ -1231,62 +1242,18 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       );
     }
 
-    message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
-    // Ensure the message has a client ID for UI updates
-    if (message.id == null || message.id!.isEmpty) {
-      message.id = DateTime.now().millisecondsSinceEpoch.toString();
-    }
-    final String tempClientID = message.id!;
-
-    final V2TimMessage? processed = await _invokeMessageWillSend(message);
-    if (processed == null) {
-      return null;
-    }
-    message = processed;
-    final bool shouldSend =
-        message.status == MessageStatus.V2TIM_MSG_STATUS_SENDING;
-
-    if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
-      currentHistoryMsgList = [message, ...currentHistoryMsgList];
-      globalModel.setMessageList(conversationID, currentHistoryMsgList);
-      _notify();
+    final V2TimValueCallback<V2TimMessage>? rebuilt =
+        await _rebuildAndSendMessage(message: message, convID: convID, convType: convType);
+    if (rebuilt != null) {
+      return rebuilt;
     }
 
-    if (!shouldSend) {
-      return _buildBlockedResult(message);
-    }
-
-    addSendingMessageID(message.msgID);
-    // 重发该消息
-    final res = await _messageService.reSendMessage(msgID: oldMsgID ?? "", onlineUserOnly: false);
-    removeSendingMessageID(oldMsgID ?? ""); // Use oldMsgID as that was the key
-
-    if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
-      // Directly find and replace the temp item we added, avoiding updateMessage ambiguity
-      final index = currentHistoryMsgList.indexWhere((e) => e.id == tempClientID);
-      if (index != -1 && res.data != null) {
-        currentHistoryMsgList[index] = res.data!;
-        globalModel.setMessageList(convID, currentHistoryMsgList);
-      } else {
-        // Fallback if not found (rare)
-        globalModel.updateMessage(res, convID, tempClientID, convType, groupType, setInputField);
-      }
-
-      // If the msgID changed after resending (and success), delete the old message from local storage
-      // to prevent it from reappearing after reload.
-      if (res.code == 0 && res.data != null && res.data!.msgID != oldMsgID && oldMsgID != null) {
-        _messageService.deleteMessages(msgIDs: [oldMsgID], webMessageInstanceList: []);
-      }
-    }
-
-    if (lifeCycle?.messageDidSend != null) {
-      lifeCycle!.messageDidSend(res);
-    }
-    return res;
+    return _fallbackResend(message, convID, 'unsupported resend type');
   }
 
   /// 处理被打招呼拦截的失败消息重发。
-  /// [message] 为拦截失败的消息，[convID]/[convType] 为会话信息，[oldMsgID] 用于清理旧本地记录。
+  /// [message] 为拦截失败的消息，[convID]/[convType] 为会话信息，
+  /// [oldMsgID] 用于清理旧本地记录。
   /// 返回新的发送结果，如内容无法识别则复原原消息并返回失败结果。
   Future<V2TimValueCallback<V2TimMessage>?> _reSendGreetingBlockedMessage({
     required V2TimMessage message,
@@ -1330,6 +1297,119 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
 
     await _deleteGreetingBlockedLocalMessage(oldMsgID);
     return _fallbackGreetingResend(message, convID);
+  }
+
+  /// 删除失败消息的本地存储，避免刷新后再次出现。
+  Future<void> _deleteLocalMessage(String? msgID) async {
+    if (msgID == null || msgID.isEmpty) {
+      return;
+    }
+    try {
+      await _messageService.deleteMessages(
+        msgIDs: [msgID],
+        webMessageInstanceList: [],
+      );
+    } catch (error) {
+      outputLogger.i('deleteLocalMessage failed: $error');
+    }
+  }
+
+  /// 将失败消息拆解内容并重新发送；仅支持文本/表情/自定义消息。
+  Future<V2TimValueCallback<V2TimMessage>?> _rebuildAndSendMessage({
+    required V2TimMessage message,
+    required String convID,
+    required ConvType convType,
+  }) async {
+    final String? text = message.textElem?.text;
+    if (text != null && text.trim().isNotEmpty) {
+      final String? replyMsgId = _parseReplyMsgId(message.cloudCustomData);
+      if (replyMsgId != null && replyMsgId.isNotEmpty) {
+        final V2TimMessage? replied = await findMessage(replyMsgId);
+        if (replied != null) {
+          _repliedMessage = replied;
+          final V2TimValueCallback<V2TimMessage>? replyResult =
+              await sendReplyMessage(text: text, convID: convID, convType: convType);
+          _repliedMessage = null;
+          if (replyResult != null) {
+            return replyResult;
+          }
+        }
+      }
+      return await sendTextMessage(text: text, convID: convID, convType: convType);
+    }
+
+    final faceElem = message.faceElem;
+    if (faceElem != null) {
+      final String data = faceElem.data ?? '';
+      final int? faceIndex = faceElem.index;
+      if (data.isNotEmpty && faceIndex != null) {
+        return await sendFaceMessage(
+          index: faceIndex,
+          data: data,
+          convID: convID,
+          convType: convType,
+        );
+      }
+    }
+
+    final soundElem = message.soundElem;
+    if (soundElem != null) {
+      final String soundPath =
+          (soundElem.path ?? soundElem.localUrl ?? soundElem.url ?? '').trim();
+      final int rawDuration = soundElem.duration ?? 0;
+      final int duration = rawDuration > 0 ? rawDuration : 1;
+      if (soundPath.isNotEmpty) {
+        return await sendSoundMessage(
+          soundPath: soundPath,
+          duration: duration,
+          convID: convID,
+          convType: convType,
+        );
+      }
+    }
+
+    final String? customData = message.customElem?.data;
+    if (customData != null && customData.isNotEmpty) {
+      return await sendCustomMessage(
+        data: customData,
+        convID: convID,
+        convType: convType,
+      );
+    }
+
+    return null;
+  }
+
+  V2TimValueCallback<V2TimMessage> _fallbackResend(
+    V2TimMessage message,
+    String convID,
+    String desc,
+  ) {
+    final List<V2TimMessage> fallbackList = getOriginMessageList();
+    globalModel.setMessageList(convID, [message, ...fallbackList]);
+    return V2TimValueCallback<V2TimMessage>(
+      code: 1,
+      desc: desc,
+      data: message,
+    );
+  }
+
+  String? _parseReplyMsgId(String? cloudCustomData) {
+    if (cloudCustomData == null || cloudCustomData.isEmpty) {
+      return null;
+    }
+    try {
+      final Map<String, dynamic> data =
+          json.decode(cloudCustomData) as Map<String, dynamic>;
+      final Object? reply = data['messageReply'];
+      if (reply is Map<String, dynamic>) {
+        final Object? msgId = reply['messageID'];
+        if (msgId is String && msgId.isNotEmpty) {
+          return msgId;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// 删除被拦截消息的本地记录，防止刷新后重新出现。
