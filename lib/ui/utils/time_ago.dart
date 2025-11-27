@@ -66,7 +66,7 @@ class TimeAgo {
         res = getYearMonthDate(date);
       }
     } else {
-      if (diffMinutes > 1) {
+      if (diffMinutes >= 1) {
         if (diffMinutes < 60) {
           final String option2 = diffMinutes.toString();
           res = TIM_t_para("{{option2}} 分钟前", "$option2 分钟前")(option2: option2);
