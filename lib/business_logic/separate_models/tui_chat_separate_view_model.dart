@@ -39,6 +39,8 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_user_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_value_callback.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_video_elem.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_video_elem.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_callback.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/life_cycle/chat_life_cycle.dart';
@@ -1314,70 +1316,215 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     }
   }
 
-  /// 将失败消息拆解内容并重新发送；仅支持文本/表情/自定义消息。
+  /// 将失败消息拆解内容并重新发送；支持文本/表情/语音/自定义/视频，缺少资源时返回 null。
   Future<V2TimValueCallback<V2TimMessage>?> _rebuildAndSendMessage({
     required V2TimMessage message,
     required String convID,
     required ConvType convType,
   }) async {
-    final String? text = message.textElem?.text;
-    if (text != null && text.trim().isNotEmpty) {
-      final String? replyMsgId = _parseReplyMsgId(message.cloudCustomData);
-      if (replyMsgId != null && replyMsgId.isNotEmpty) {
-        final V2TimMessage? replied = await findMessage(replyMsgId);
-        if (replied != null) {
-          _repliedMessage = replied;
-          final V2TimValueCallback<V2TimMessage>? replyResult =
-              await sendReplyMessage(text: text, convID: convID, convType: convType);
-          _repliedMessage = null;
-          if (replyResult != null) {
-            return replyResult;
-          }
-        }
-      }
-      return await sendTextMessage(text: text, convID: convID, convType: convType);
+    // 按消息类型依次尝试重发，命中后立即返回。
+    final V2TimValueCallback<V2TimMessage>? textResult =
+        await _reSendTextMessage(message, convID, convType);
+    if (textResult != null) {
+      return textResult;
     }
 
-    final faceElem = message.faceElem;
-    if (faceElem != null) {
-      final String data = faceElem.data ?? '';
-      final int? faceIndex = faceElem.index;
-      if (data.isNotEmpty && faceIndex != null) {
-        return await sendFaceMessage(
-          index: faceIndex,
-          data: data,
-          convID: convID,
-          convType: convType,
-        );
-      }
+    final V2TimValueCallback<V2TimMessage>? faceResult =
+        await _reSendFaceMessage(message, convID, convType);
+    if (faceResult != null) {
+      return faceResult;
     }
 
-    final soundElem = message.soundElem;
-    if (soundElem != null) {
-      final String soundPath =
-          (soundElem.path ?? soundElem.localUrl ?? soundElem.url ?? '').trim();
-      final int rawDuration = soundElem.duration ?? 0;
-      final int duration = rawDuration > 0 ? rawDuration : 1;
-      if (soundPath.isNotEmpty) {
-        return await sendSoundMessage(
-          soundPath: soundPath,
-          duration: duration,
-          convID: convID,
-          convType: convType,
-        );
-      }
+    final V2TimValueCallback<V2TimMessage>? soundResult =
+        await _reSendSoundMessage(message, convID, convType);
+    if (soundResult != null) {
+      return soundResult;
     }
 
-    final String? customData = message.customElem?.data;
-    if (customData != null && customData.isNotEmpty) {
-      return await sendCustomMessage(
-        data: customData,
-        convID: convID,
-        convType: convType,
-      );
+    final V2TimValueCallback<V2TimMessage>? videoResult =
+        await _reSendVideoMessage(
+      videoElem: message.videoElem,
+      convID: convID,
+      convType: convType,
+    );
+    if (videoResult != null) {
+      return videoResult;
+    }
+
+    final V2TimValueCallback<V2TimMessage>? customResult =
+        await _reSendCustomMessage(message, convID, convType);
+    if (customResult != null) {
+      return customResult;
     }
 
     return null;
+  }
+
+  /// 重发文本消息，兼容被回复场景；文本内容为空时返回 null。
+  /// [message] 失败的原始消息，用于提取文本与回复信息。
+  /// [convID]/[convType] 指定会话上下文。
+  Future<V2TimValueCallback<V2TimMessage>?> _reSendTextMessage(
+    V2TimMessage message,
+    String convID,
+    ConvType convType,
+  ) async {
+    final String? text = message.textElem?.text;
+    if (text == null || text.trim().isEmpty) {
+      return null;
+    }
+    final String? replyMsgId = _parseReplyMsgId(message.cloudCustomData);
+    if (replyMsgId != null && replyMsgId.isNotEmpty) {
+      final V2TimMessage? replied = await findMessage(replyMsgId);
+      if (replied != null) {
+        _repliedMessage = replied;
+        final V2TimValueCallback<V2TimMessage>? replyResult =
+            await sendReplyMessage(text: text, convID: convID, convType: convType);
+        _repliedMessage = null;
+        if (replyResult != null) {
+          return replyResult;
+        }
+      }
+    }
+    return await sendTextMessage(text: text, convID: convID, convType: convType);
+  }
+
+  /// 重发表情消息，缺少索引或数据时返回 null。
+  /// [message] 原始失败消息。
+  /// [convID]/[convType] 当前会话信息。
+  Future<V2TimValueCallback<V2TimMessage>?> _reSendFaceMessage(
+    V2TimMessage message,
+    String convID,
+    ConvType convType,
+  ) async {
+    final faceElem = message.faceElem;
+    if (faceElem == null) {
+      return null;
+    }
+    final String data = faceElem.data ?? '';
+    final int? faceIndex = faceElem.index;
+    if (data.isEmpty || faceIndex == null) {
+      return null;
+    }
+    return await sendFaceMessage(
+      index: faceIndex,
+      data: data,
+      convID: convID,
+      convType: convType,
+    );
+  }
+
+  /// 重发语音消息，需本地路径存在，否则返回 null。
+  /// [message] 原始失败语音消息。
+  /// [convID]/[convType] 当前会话标识。
+  Future<V2TimValueCallback<V2TimMessage>?> _reSendSoundMessage(
+    V2TimMessage message,
+    String convID,
+    ConvType convType,
+  ) async {
+    final soundElem = message.soundElem;
+    if (soundElem == null) {
+      return null;
+    }
+    final String soundPath =
+        (soundElem.path ?? soundElem.localUrl ?? soundElem.url ?? '').trim();
+    if (soundPath.isEmpty) {
+      return null;
+    }
+    final int rawDuration = soundElem.duration ?? 0;
+    final int duration = rawDuration > 0 ? rawDuration : 1;
+    return await sendSoundMessage(
+      soundPath: soundPath,
+      duration: duration,
+      convID: convID,
+      convType: convType,
+    );
+  }
+
+  /// 重发自定义消息，缺少数据时返回 null。
+  /// [message] 失败的自定义消息。
+  /// [convID]/[convType] 当前会话标识。
+  Future<V2TimValueCallback<V2TimMessage>?> _reSendCustomMessage(
+    V2TimMessage message,
+    String convID,
+    ConvType convType,
+  ) async {
+    final String? customData = message.customElem?.data;
+    if (customData == null || customData.isEmpty) {
+      return null;
+    }
+    return await sendCustomMessage(
+      data: customData,
+      convID: convID,
+      convType: convType,
+    );
+  }
+
+  /// 基于失败消息中的视频元素重建并发送视频，缺少本地文件或元素为空时返回 null。
+  /// [videoElem] 失败消息携带的视频元素，用于提取本地资源。
+  /// [convID]/[convType] 指当前会话标识，确保重发走对的目标。
+  Future<V2TimValueCallback<V2TimMessage>?> _reSendVideoMessage({
+    required V2TimVideoElem? videoElem,
+    required String convID,
+    required ConvType convType,
+  }) async {
+    if (videoElem == null) {
+      return null;
+    }
+    final String videoPath = _resolveResendVideoPath(videoElem);
+    final String snapshotPath = _resolveResendSnapshotPath(videoElem);
+    if (videoPath.isEmpty || snapshotPath.isEmpty) {
+      return null;
+    }
+    if (!File(videoPath).existsSync() || !File(snapshotPath).existsSync()) {
+      return null;
+    }
+    final int durationSeconds = _normalizeVideoDurationSeconds(videoElem.duration);
+    return await sendVideoMessage(
+      videoPath: videoPath,
+      duration: durationSeconds,
+      snapshotPath: snapshotPath,
+      convID: convID,
+      convType: convType,
+    );
+  }
+
+  /// 解析失败视频消息的本地视频路径，优先发送时的路径，其次下载缓存。
+  /// [videoElem] 视频元素，包含本地路径字段。
+  /// 返回可用于重发的本地视频路径，缺失时返回空字符串。
+  String _resolveResendVideoPath(V2TimVideoElem videoElem) {
+    final String primaryPath = (videoElem.videoPath ?? '').trim();
+    if (primaryPath.isNotEmpty) {
+      return primaryPath;
+    }
+    final String cachedPath = (videoElem.localVideoUrl ?? '').trim();
+    if (cachedPath.isNotEmpty) {
+      return cachedPath;
+    }
+    return '';
+  }
+
+  /// 解析失败视频消息的封面路径，保障 SDK 重发必需的缩略图文件。
+  /// [videoElem] 视频元素，包含发送时或下载后的封面路径。
+  /// 返回存在的本地封面路径，缺失时返回空字符串。
+  String _resolveResendSnapshotPath(V2TimVideoElem videoElem) {
+    final String primarySnapshot = (videoElem.snapshotPath ?? '').trim();
+    if (primarySnapshot.isNotEmpty) {
+      return primarySnapshot;
+    }
+    final String cachedSnapshot = (videoElem.localSnapshotUrl ?? '').trim();
+    if (cachedSnapshot.isNotEmpty) {
+      return cachedSnapshot;
+    }
+    return '';
+  }
+
+  /// 规范化视频重发的时长，单位秒，避免 0 秒导致 SDK 报错。
+  /// [duration] 视频原始时长（秒），为空或非正数时兜底为 1。
+  int _normalizeVideoDurationSeconds(int? duration) {
+    if (duration == null || duration <= 0) {
+      return 1;
+    }
+    return duration;
   }
 
   V2TimValueCallback<V2TimMessage> _fallbackResend(

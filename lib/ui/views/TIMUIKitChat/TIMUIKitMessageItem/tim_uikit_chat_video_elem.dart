@@ -20,7 +20,8 @@ import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/message.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
-import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/TIMUIKitMessageReaction/tim_uikit_message_reaction_wrapper.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/'
+    'TIMUIKitMessageReaction/tim_uikit_message_reaction_wrapper.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/video_screen.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/wide_popup.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -115,19 +116,59 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
         ),
       );
     }
-    return (!PlatformUtils().isWeb && stateElement.snapshotUrl == null ||
-            widget.message.status == MessageStatus.V2TIM_MSG_STATUS_SENDING)
-        ? (stateElement.snapshotPath!.isNotEmpty
-            ? Image.file(File(stateElement.snapshotPath!), fit: BoxFit.fitWidth)
-            : Image.file(File(stateElement.localSnapshotUrl!), fit: BoxFit.fitWidth))
-        : (PlatformUtils().isWeb || stateElement.localSnapshotUrl == null || stateElement.localSnapshotUrl == "")
-            ? Image.network(stateElement.snapshotUrl!, fit: BoxFit.fitWidth)
-            : Image.file(File(stateElement.localSnapshotUrl!), fit: BoxFit.fitWidth);
+    // 发送中或失败场景下优先用本地封面，避免触发无效下载。
+    final bool shouldUseLocalSnapshot =
+        (!PlatformUtils().isWeb && stateElement.snapshotUrl == null) ||
+            widget.message.status == MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    // 发送时生成的本地封面。
+    final bool hasPrimarySnapshot = (stateElement.snapshotPath ?? '').isNotEmpty;
+    // SDK 缓存的封面文件。
+    final bool hasCachedSnapshot = (stateElement.localSnapshotUrl ?? '').isNotEmpty;
+    if (shouldUseLocalSnapshot) {
+      if (hasPrimarySnapshot) {
+        return Image.file(
+          File(stateElement.snapshotPath!),
+          fit: BoxFit.fitWidth,
+        );
+      }
+      if (hasCachedSnapshot) {
+        return Image.file(
+          File(stateElement.localSnapshotUrl!),
+          fit: BoxFit.fitWidth,
+        );
+      }
+    }
+
+    final bool shouldLoadNetwork = PlatformUtils().isWeb ||
+        stateElement.localSnapshotUrl == null ||
+        stateElement.localSnapshotUrl!.isEmpty;
+    if (shouldLoadNetwork) {
+      return Image.network(
+        stateElement.snapshotUrl ?? '',
+        fit: BoxFit.fitWidth,
+      );
+    }
+    return Image.file(
+      File(stateElement.localSnapshotUrl!),
+      fit: BoxFit.fitWidth,
+    );
   }
 
+  /// 拉取视频的云端地址并尝试缓存本地，发送中/发送失败的消息跳过以避免 6017 报错。
+  /// 仅当 msgID 存在时才发起下载请求，确保 SDK 参数完整。
   downloadMessageDetailAndSave() async {
+    final int? status = widget.message.status;
+    if (status == MessageStatus.V2TIM_MSG_STATUS_SENDING ||
+        status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL) {
+      return;
+    }
+    // 视频元素理论上不为空，此处加保护避免异常崩溃。
+    final V2TimVideoElem? videoElem = widget.message.videoElem;
+    if (videoElem == null) {
+      return;
+    }
     if (TencentUtils.checkString(widget.message.msgID) != null) {
-      if (TencentUtils.checkString(widget.message.videoElem!.videoUrl) == null) {
+      if (TencentUtils.checkString(videoElem.videoUrl) == null) {
         final response = await _messageService.getMessageOnlineUrl(msgID: widget.message.msgID!);
         if (response.data != null) {
           widget.message.videoElem = response.data!.videoElem;
@@ -137,14 +178,23 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
         }
       }
       if (!PlatformUtils().isWeb) {
-        if (TencentUtils.checkString(widget.message.videoElem!.localVideoUrl) == null ||
-            !File(widget.message.videoElem!.localVideoUrl!).existsSync()) {
+        if (TencentUtils.checkString(videoElem.localVideoUrl) == null ||
+            !File(videoElem.localVideoUrl!).existsSync()) {
           _messageService.downloadMessage(
-              msgID: widget.message.msgID!, messageType: 5, imageType: 0, isSnapshot: false);
+            msgID: widget.message.msgID!,
+            messageType: 5,
+            imageType: 0,
+            isSnapshot: false,
+          );
         }
-        if (TencentUtils.checkString(widget.message.videoElem!.localSnapshotUrl) == null ||
-            !File(widget.message.videoElem!.localSnapshotUrl!).existsSync()) {
-          _messageService.downloadMessage(msgID: widget.message.msgID!, messageType: 5, imageType: 0, isSnapshot: true);
+        if (TencentUtils.checkString(videoElem.localSnapshotUrl) == null ||
+            !File(videoElem.localSnapshotUrl!).existsSync()) {
+          _messageService.downloadMessage(
+            msgID: widget.message.msgID!,
+            messageType: 5,
+            imageType: 0,
+            isSnapshot: true,
+          );
         }
       }
     }
@@ -167,8 +217,18 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final theme = value.theme;
-    final heroTag =
-        "${widget.message.msgID ?? widget.message.id ?? widget.message.timestamp ?? DateTime.now().millisecondsSinceEpoch}${widget.isFrom}";
+    // 生成播放页动画的标识，优先使用消息 ID，其次使用时间戳兜底。
+    final String heroBase = widget.message.msgID ??
+        widget.message.id ??
+        widget.message.timestamp?.toString() ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    final heroTag = "$heroBase${widget.isFrom}";
+    // 是否已存在封面资源，用于控制播放按钮展示。
+    final bool hasVideoSnapshot =
+        (stateElement.snapshotUrl ?? '').isNotEmpty || (stateElement.snapshotPath ?? '').isNotEmpty;
+    // 是否已存在视频文件或在线地址。
+    final bool hasVideoSource =
+        (stateElement.videoPath ?? '').isNotEmpty || (stateElement.videoUrl ?? '').isNotEmpty;
 
     return GestureDetector(
       onTap: () {
@@ -205,7 +265,12 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
               //     onClickOrigin: () => launchDesktopFile(videoPath));
             } else if (TencentUtils.isTextNotEmpty(videoUrl)) {
               onTIMCallback(
-                  TIMCallback(infoCode: 6660414, infoRecommendText: TIM_t("正在下载中"), type: TIMCallbackType.INFO));
+                TIMCallback(
+                  infoCode: 6660414,
+                  infoRecommendText: TIM_t("正在下载中"),
+                  type: TIMCallbackType.INFO,
+                ),
+              );
             }
           }
         } else {
@@ -257,25 +322,36 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
                               ),
                             ),
                           Row(
-                            children: [Expanded(child: generateSnapshot(theme, stateElement.snapshotHeight ?? 100))],
+                            children: [
+                              Expanded(
+                                child: generateSnapshot(
+                                  theme,
+                                  stateElement.snapshotHeight ?? 100,
+                                ),
+                              ),
+                            ],
                           ),
                           if (widget.message.status != MessageStatus.V2TIM_MSG_STATUS_SENDING &&
-                                  (stateElement.snapshotUrl != null || stateElement.snapshotPath != null) &&
-                                  stateElement.videoPath != null ||
-                              stateElement.videoUrl != null)
+                              hasVideoSnapshot &&
+                              hasVideoSource)
                             Positioned.fill(
-                              // alignment: Alignment.center,
                               child: Center(
-                                  child:
-                                      Image.asset('images/play.png', package: 'tencent_cloud_chat_uikit', height: 64)),
+                                child: Image.asset(
+                                  'images/play.png',
+                                  package: 'tencent_cloud_chat_uikit',
+                                  height: 64,
+                                ),
+                              ),
                             ),
-                          if (widget.message.videoElem?.duration != null && widget.message.videoElem!.duration! > 0)
+                          if ((widget.message.videoElem?.duration ?? 0) > 0)
                             Positioned(
-                                right: 10,
-                                bottom: 10,
-                                child: Text(
-                                    MessageUtils.formatVideoTime(widget.message.videoElem!.duration!).toString(),
-                                    style: const TextStyle(color: Colors.white, fontSize: 12))),
+                              right: 10,
+                              bottom: 10,
+                              child: Text(
+                                MessageUtils.formatVideoTime(widget.message.videoElem!.duration!).toString(),
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              ),
+                            ),
                         ],
                       ));
                 }),
