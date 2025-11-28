@@ -327,6 +327,10 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     super.dispose();
   }
 
+  /// 计算输入区域底部留白。
+  /// 入参：无。
+  /// 返回：需要追加的底部高度，保证键盘/面板/引用卡片切换时引用条不会贴底。
+  /// 业务约束：面板展开时按面板高度处理，键盘收起时至少保留36并叠加安全区与引用卡片间距。
   double _getBottomHeight() {
     // 面板展开时，仍按面板高度处理
     if (showMore || showEmojiPanel) {
@@ -337,10 +341,19 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     }
 
     // 键盘展开/收起的固定高度策略：
-    // 有键盘：物理安全区(viewPadding.bottom) + 12
-    // 无键盘：固定 36
+    // 有键盘：保留 24 的基础间距，避免输入条贴边
+    // 无键盘：至少 36，并叠加底部安全区与引用留白抬高回复卡片
     final double physicalSafeBottom = MediaQuery.of(context).viewPadding.bottom;
-    return !showKeyboard ? (physicalSafeBottom + 0) : 24.0;
+    // 回复引用存在时需额外抬高底部间距
+    final bool hasReplyCard =
+        !showSendSoundText && widget.repliedMessage != null;
+    // 引用条与底部手势区的额外安全间距
+    final double replyExtraPadding = hasReplyCard ? 16.0 : 0.0;
+
+    if (!showKeyboard) {
+      return max(physicalSafeBottom + replyExtraPadding, 36.0);
+    }
+    return 24.0;
   }
 
   _openMore() {
