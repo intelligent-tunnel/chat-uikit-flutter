@@ -118,11 +118,26 @@ class TIMUIKitMessageTooltipState
     isShowMoreSticker = widget.isShowMoreSticker;
   }
 
+  /// 判断文本是否包含可翻译的英文字符（需先剔除纯表情和贴纸占位符）
+  /// [text] 当前长按的消息文本内容，可能包含表情占位符或空白
+  /// 返回值：仅当真实文本包含英文字符时返回 true，避免中文+表情被误判需要翻译
   bool _containsEnglishLetter(String? text) {
-    if (text == null || text.trim().isEmpty) {
+    if (text == null) {
       return false;
     }
-    return _englishLetterPattern.hasMatch(text);
+    final String trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return false;
+    }
+    // 去掉 emoji、连接符以及贴纸占位符，仅保留真实文字用于英文检测
+    final String normalizedText = trimmed
+        .replaceAll(_emojiConnectorPattern, '')
+        .replaceAll(_stickerTokenPattern, '')
+        .replaceAll(_emojiPattern, '');
+    if (normalizedText.trim().isEmpty) {
+      return false;
+    }
+    return _englishLetterPattern.hasMatch(normalizedText);
   }
 
   bool _isEmojiOnly(String? text) {
