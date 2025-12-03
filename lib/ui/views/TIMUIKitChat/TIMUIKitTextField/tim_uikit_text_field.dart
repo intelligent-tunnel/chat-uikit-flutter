@@ -33,6 +33,7 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_at_text.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/narrow.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart';
+import 'package:Pet/app/im/util/im_mute_status_manager.dart';
 
 enum MuteStatus { none, me, all }
 
@@ -387,11 +388,19 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
     return userList;
   }
 
-  onSubmitted() async {
+  /// 发送前的统一入口：需要先做禁言校验，禁言则中断发送链路。
+  /// - 入参：无。
+  /// - 返回：Future<void>，内部按需刷新禁言状态并阻断发送。
+  Future<void> onSubmitted() async {
     conversationModel.clearWebDraft(conversationID: widget.conversationID);
     lastText = "";
     final text = textEditingController.text.trim();
     final convType = widget.conversationType;
+    final bool allowed =
+        await ImMuteStatusManager.instance.ensureSendAllowed(forceRefresh: true);
+    if (!allowed) {
+      return;
+    }
     if (text.isNotEmpty && text != zeroWidthSpace) {
       if (widget.model.repliedMessage != null) {
         MessageUtils.handleMessageError(
