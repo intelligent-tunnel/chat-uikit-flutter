@@ -36,7 +36,7 @@ import 'package:path/path.dart' as path;
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_callback.dart';
 import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
-import 'package:Pet/util/notify/notify_util.dart';
+import 'package:tencent_cloud_chat_uikit/utils/notify_util.dart';
 
 class TIMUIKitMessageTooltip extends StatefulWidget {
   /// tool tips panel configuration, long press message will show tool tips panel
