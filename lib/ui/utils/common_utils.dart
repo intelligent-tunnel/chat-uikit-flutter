@@ -14,6 +14,9 @@ class TencentUtils{
     return text;
   }
 
+  /// 根据文件扩展名返回对应的 MIME 类型，用于在发送消息时区分图片、视频或文件。
+  /// [fileType] 传入文件后缀（不带点），会做常见格式映射。
+  /// 返回标准 MIME 字符串，未知类型返回 "*/*" 供调用方兜底。
   static String getFileType(String fileType) {
     switch (fileType) {
       case "3gp":
@@ -113,6 +116,8 @@ class TencentUtils{
         return "application/pdf";
       case "png":
         return "image/png";
+      case "webp":
+        return "image/webp";
       case "pps":
         return "application/vnd.ms-powerpoint";
       case "ppt":
