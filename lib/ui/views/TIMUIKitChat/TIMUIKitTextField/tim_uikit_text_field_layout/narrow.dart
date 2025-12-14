@@ -179,6 +179,10 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     }
   }
 
+  /// 监听输入框文本变化，同步滚动条与发送按钮状态。
+  /// 入参：无。
+  /// 返回：无。
+  /// 业务约束：文本为空时隐藏滚动条，Android/Web 下依赖文本状态切换发送按钮显隐。
   void _handleTextEditingValueChanged() {
     if (!mounted) {
       return;
@@ -186,6 +190,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     if (widget.textEditingController.text.isEmpty && showInputScrollbar) {
       _updateInputScrollbar(forceHide: true);
     }
+    setSendButton();
   }
 
   @override
@@ -200,14 +205,28 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     }
   }
 
+  /// 计算当前输入框是否包含可发送的有效文本。
+  /// 入参：rawText 为输入框原始内容。
+  /// 返回：去除首尾空格后非空即返回 true。
+  /// 业务约束：仅用于窄屏 Android/Web 的发送按钮显隐判定，空白字符不触发展示。
+  bool _hasSendableText(String rawText) {
+    final String trimmedText = rawText.trim();
+    return trimmedText.isNotEmpty;
+  }
+
+  /// 根据输入框内容切换“更多”与“发送”按钮的展示。
+  /// 入参：无，直接读取 textEditingController。
+  /// 返回：无。
+  /// 业务约束：Android/Web 窄屏下有有效文本才展示发送按钮，空文本时回退到更多按钮。
   void setSendButton() {
-    final value = widget.textEditingController.text;
+    final String value = widget.textEditingController.text;
+    final bool hasSendableText = _hasSendableText(value);
     if (isWebDevice() || isAndroidDevice()) {
-      if (value.isEmpty && showMoreButton != true) {
+      if (!hasSendableText && showMoreButton != true) {
         setState(() {
           showMoreButton = true;
         });
-      } else if (value.isNotEmpty && showMoreButton == true) {
+      } else if (hasSendableText && showMoreButton == true) {
         setState(() {
           showMoreButton = false;
         });
@@ -239,7 +258,11 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     widget.focusNode.requestFocus();
   }
 
-  Widget _getBottomContainer(TUITheme theme) {
+  /// 构建底部的表情/更多面板容器。
+  /// 入参：theme 为主题色，hasSendableText 表示输入框是否有有效文本。
+  /// 返回：当前应展示的底部面板组件。
+  /// 业务约束：表情面板需联动发送按钮显隐，避免无内容时误触发送。
+  Widget _getBottomContainer(TUITheme theme, bool hasSendableText) {
     if (showEmojiPanel) {
       return widget.customStickerPanel != null
           ? widget.customStickerPanel!(
@@ -558,12 +581,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     }, const Duration(seconds: 1));
 
     final debounceFunc = _debounce((value) {
+      final bool hasSendableText = _hasSendableText(value);
       if (isWebDevice() || isAndroidDevice()) {
-        if (value.isEmpty && showMoreButton != true) {
+        if (!hasSendableText && showMoreButton != true) {
           setState(() {
             showMoreButton = true;
           });
-        } else if (value.isNotEmpty && showMoreButton == true) {
+        } else if (hasSendableText && showMoreButton == true) {
           setState(() {
             showMoreButton = false;
           });
@@ -574,7 +598,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       }
       widget.handleAtText(value);
       widget.handleSendEditStatus(value, true);
-      final isEmpty = value.isEmpty;
+      final bool isEmpty = value.isEmpty;
       if (isEmpty) {
         widget.handleSoftKeyBoardDelete();
         _updateInputScrollbar(forceHide: true);
@@ -598,6 +622,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     final bool hasReplyCard = repliedMessageCard != null;
 
     _updatePanelMetrics(hasReplyCard);
+    // 当前输入框是否存在可发送内容，用于控制发送按钮与表情面板行为。
+    final bool hasSendableText = _hasSendableText(widget.textEditingController.text);
 
     final Widget inputPanel = Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -699,8 +725,10 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                     if (showKeyboard) {
                                       widget.focusNode.requestFocus();
                                     }
+                                    final bool currentHasSendableText =
+                                        _hasSendableText(widget.textEditingController.text);
                                     setState(() {
-                                      if (widget.textEditingController.text.isEmpty) {
+                                      if (!currentHasSendableText) {
                                         showMoreButton = true;
                                       }
                                     });
@@ -799,7 +827,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                 ),
               ),
             ),
-          if ((isAndroidDevice() || isWebDevice()) && !showMoreButton)
+          if ((isAndroidDevice() || isWebDevice()) && !showMoreButton && hasSendableText)
             SizedBox(
               height: 36,
               child: ElevatedButton(
@@ -808,7 +836,9 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                   if (showKeyboard) {
                     widget.focusNode.requestFocus();
                   }
-                  if (widget.textEditingController.text.isEmpty) {
+                  final bool currentHasSendableText =
+                      _hasSendableText(widget.textEditingController.text);
+                  if (!currentHasSendableText) {
                     setState(() {
                       showMoreButton = true;
                     });
@@ -871,7 +901,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                   height: max(_getBottomHeight(), 0.0),
                   child: ListView(
                     physics: const NeverScrollableScrollPhysics(),
-                    children: [_getBottomContainer(theme)],
+                    children: [_getBottomContainer(theme, hasSendableText)],
                   ),
                 ),
               ],
