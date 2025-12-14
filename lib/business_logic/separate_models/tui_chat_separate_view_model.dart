@@ -882,33 +882,47 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     );
   }
 
+  /// 发送语音消息（统一走 messageWillSend 生命周期，便于业务侧拦截发消息）。
+  /// - 入参：
+  ///   - [soundPath] 语音文件路径。
+  ///   - [duration] 语音时长（秒）。
+  ///   - [convID] 会话 ID。
+  ///   - [convType] 会话类型（单聊/群聊）。
+  /// - 返回：发送结果回调；若被生命周期拦截则返回 code=1 的结果且不会触发 SDK 发送。
+  /// - 约束：若 messageWillSend 将 message.status 改为非 SENDING，则视为拦截，不再调用 _sendMessage。
   Future<V2TimValueCallback<V2TimMessage>?> sendSoundMessage({
     required String soundPath,
     required int duration,
     required String convID,
     required ConvType convType,
   }) async {
-    final soundMessageInfo = await _messageService.createSoundMessage(soundPath: soundPath, duration: duration);
-    List<V2TimMessage> currentHistoryMsgList = getOriginMessageList();
-    final messageInfo = soundMessageInfo!.messageInfo;
-    if (messageInfo != null) {
-      final messageInfoWithSender = tools.setUserInfoForMessage(messageInfo, soundMessageInfo.id!);
-      messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
-      addSendingMessageID(messageInfo.id);
-      if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
-        currentHistoryMsgList = [messageInfoWithSender, ...currentHistoryMsgList];
-        globalModel.setMessageList(conversationID, currentHistoryMsgList);
-        _notify();
-      }
-
-      return _sendMessage(
-        convID: convID,
-        id: soundMessageInfo.id as String,
-        convType: convType,
-        offlinePushInfo: tools.buildMessagePushInfo(soundMessageInfo.messageInfo!, convID, convType),
-      );
+    final soundMessageInfo = await _messageService.createSoundMessage(
+      soundPath: soundPath,
+      duration: duration,
+    );
+    if (soundMessageInfo == null) {
+      return null;
     }
-    return null;
+    final V2TimMessage? messageInfo = soundMessageInfo.messageInfo;
+    if (messageInfo == null) {
+      return null;
+    }
+    final Object? soundRawId = soundMessageInfo.id;
+    if (soundRawId == null) {
+      return null;
+    }
+    final String soundMessageId = soundRawId as String;
+    final V2TimMessage message =
+        tools.setUserInfoForMessage(messageInfo, soundMessageId);
+    message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+
+    return _processAndSendMessage(
+      message: message,
+      messageId: soundMessageId,
+      convID: convID,
+      convType: convType,
+      offlinePushInfo: tools.buildMessagePushInfo(message, convID, convType),
+    );
   }
 
   Future<V2TimValueCallback<V2TimMessage>?> sendReplyMessage({
@@ -982,51 +996,82 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     });
   }
 
+  /// 发送图片消息（统一走 messageWillSend 生命周期，便于业务侧拦截发消息）。
+  /// - 入参：
+  ///   - [imagePath] 本地图片路径（移动端使用）。
+  ///   - [imageName] 图片文件名（可选）。
+  ///   - [convID] 会话 ID。
+  ///   - [inputElement] Web 侧输入元素（可选）。
+  ///   - [convType] 会话类型（单聊/群聊）。
+  /// - 返回：发送结果回调；若被生命周期拦截则返回 code=1 的结果且不会触发 SDK 发送。
+  /// - 约束：若 messageWillSend 将 message.status 改为非 SENDING，则视为拦截，不再调用 _sendMessage。
   Future<V2TimValueCallback<V2TimMessage>?> sendImageMessage(
       {String? imagePath,
       String? imageName,
       required String convID,
       dynamic inputElement,
       required ConvType convType}) async {
-    String? image;
-    if ((PlatformUtils().isAndroid || PlatformUtils().isIOS) && imagePath != null && imagePath.isNotEmpty) {
+    String? optimizedImagePath;
+    if ((PlatformUtils().isAndroid || PlatformUtils().isIOS) &&
+        imagePath != null &&
+        imagePath.isNotEmpty) {
       try {
         final size = getFileSize(File(imagePath));
-        final format = imagePath.split(".")[imagePath.split(".").length - 1].toLowerCase();
-        if (size > 20 || (format != "jpg" && format != "png" && format != "gif")) {
+        final format = imagePath.split(".").last.toLowerCase();
+        if (size > 20 ||
+            (format != "jpg" && format != "png" && format != "gif")) {
           final target = await getTempPath();
-          final result = await FlutterImageCompress.compressAndGetFile(imagePath, target,
-              format: CompressFormat.jpeg, quality: 85);
-          image = result?.path;
+          final result = await FlutterImageCompress.compressAndGetFile(
+            imagePath,
+            target,
+            format: CompressFormat.jpeg,
+            quality: 85,
+          );
+          optimizedImagePath = result?.path;
         }
         // ignore: empty_catches
       } catch (e) {}
     }
     final imageMessageInfo = await _messageService.createImageMessage(
-        imageName: imageName, imagePath: image ?? imagePath, inputElement: inputElement);
-    List<V2TimMessage> currentHistoryMsgList = getOriginMessageList();
-    final messageInfo = imageMessageInfo!.messageInfo;
-    if (messageInfo != null) {
-      final messageInfoWithSender = tools.setUserInfoForMessage(messageInfo, imageMessageInfo.id);
-      messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
-      addSendingMessageID(messageInfo.id);
-      if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
-        currentHistoryMsgList = [messageInfoWithSender, ...currentHistoryMsgList];
-        globalModel.setMessageList(conversationID, currentHistoryMsgList);
-        _notify();
-      }
-
-      return _sendMessage(
-        convID: convID,
-        messageInfo: messageInfoWithSender,
-        id: imageMessageInfo.id as String,
-        convType: convType,
-        offlinePushInfo: tools.buildMessagePushInfo(imageMessageInfo.messageInfo!, convID, convType),
-      );
+      imageName: imageName,
+      imagePath: optimizedImagePath ?? imagePath,
+      inputElement: inputElement,
+    );
+    if (imageMessageInfo == null) {
+      return null;
     }
-    return null;
+    final V2TimMessage? messageInfo = imageMessageInfo.messageInfo;
+    if (messageInfo == null) {
+      return null;
+    }
+    final Object? imageRawId = imageMessageInfo.id;
+    if (imageRawId == null) {
+      return null;
+    }
+    final String imageMessageId = imageRawId as String;
+    final V2TimMessage message =
+        tools.setUserInfoForMessage(messageInfo, imageMessageId);
+    message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+
+    return _processAndSendMessage(
+      message: message,
+      messageId: imageMessageId,
+      convID: convID,
+      convType: convType,
+      offlinePushInfo: tools.buildMessagePushInfo(message, convID, convType),
+    );
   }
 
+  /// 发送视频消息（统一走 messageWillSend 生命周期，便于业务侧拦截发消息）。
+  /// - 入参：
+  ///   - [videoPath] 本地视频路径（移动端使用）。
+  ///   - [duration] 视频时长（秒，可选）。
+  ///   - [snapshotPath] 视频首帧截图路径（可选）。
+  ///   - [convID] 会话 ID。
+  ///   - [convType] 会话类型（单聊/群聊）。
+  ///   - [inputElement] Web 侧输入元素（可选）。
+  /// - 返回：发送结果回调；若被生命周期拦截则返回 code=1 的结果且不会触发 SDK 发送。
+  /// - 约束：若 messageWillSend 将 message.status 改为非 SENDING，则视为拦截，不再调用 _sendMessage。
   Future<V2TimValueCallback<V2TimMessage>?> sendVideoMessage(
       {String? videoPath,
       int? duration,
@@ -1034,33 +1079,38 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       required String convID,
       required ConvType convType,
       dynamic inputElement}) async {
-    List<V2TimMessage> currentHistoryMsgList = getOriginMessageList();
+    final String videoType =
+        videoPath != null ? videoPath.split(".").last : 'mp4';
     final videoMessageInfo = await _messageService.createVideoMessage(
-        videoPath: videoPath,
-        type: videoPath != null ? videoPath.split(".")[videoPath.split(".").length - 1] : 'mp4',
-        duration: duration,
-        inputElement: inputElement,
-        snapshotPath: snapshotPath);
-    final messageInfo = videoMessageInfo!.messageInfo;
-    if (messageInfo != null) {
-      final messageInfoWithSender = tools.setUserInfoForMessage(messageInfo, videoMessageInfo.id);
-      messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
-      addSendingMessageID(messageInfo.id);
-      if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
-        currentHistoryMsgList = [messageInfoWithSender, ...currentHistoryMsgList];
-        globalModel.setMessageList(conversationID, currentHistoryMsgList);
-        _notify();
-      }
-
-      return _sendMessage(
-        convID: convID,
-        messageInfo: messageInfoWithSender,
-        id: videoMessageInfo.id as String,
-        convType: convType,
-        offlinePushInfo: tools.buildMessagePushInfo(videoMessageInfo.messageInfo!, convID, convType),
-      );
+      videoPath: videoPath,
+      type: videoType,
+      duration: duration,
+      inputElement: inputElement,
+      snapshotPath: snapshotPath,
+    );
+    if (videoMessageInfo == null) {
+      return null;
     }
-    return null;
+    final V2TimMessage? messageInfo = videoMessageInfo.messageInfo;
+    if (messageInfo == null) {
+      return null;
+    }
+    final Object? videoRawId = videoMessageInfo.id;
+    if (videoRawId == null) {
+      return null;
+    }
+    final String videoMessageId = videoRawId as String;
+    final V2TimMessage message =
+        tools.setUserInfoForMessage(messageInfo, videoMessageId);
+    message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+
+    return _processAndSendMessage(
+      message: message,
+      messageId: videoMessageId,
+      convID: convID,
+      convType: convType,
+      offlinePushInfo: tools.buildMessagePushInfo(message, convID, convType),
+    );
   }
 
   Future<V2TimValueCallback<V2TimMessage>?> sendFileMessage(
