@@ -38,8 +38,8 @@ class Avatar extends TIMUIKitStatelessWidget {
       if (type == 1) {
         return Image.asset(
             TencentUtils.checkString(selfInfoViewModel.globalConfig?.defaultAvatarAssetPath) ??
-                'images/default_c2c_head.png',
-            fit: BoxFit.cover,
+                'images/default_avatar.png',
+            fit: BoxFit.contain,
             package:
                 selfInfoViewModel.globalConfig?.defaultAvatarAssetPath != null ? null : 'tencent_cloud_chat_uikit');
       } else {
