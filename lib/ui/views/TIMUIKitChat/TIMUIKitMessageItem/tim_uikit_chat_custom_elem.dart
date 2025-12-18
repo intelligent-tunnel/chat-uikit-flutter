@@ -8,6 +8,8 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_statelesswidget.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_bubble_style.dart';
 
 const BorderRadius _kSelfBubbleRadius = BorderRadius.all(Radius.circular(12));
 const BorderRadius _kOtherBubbleRadius = BorderRadius.all(Radius.circular(12));
@@ -42,14 +44,24 @@ class TIMUIKitCustomElem extends TIMUIKitStatelessWidget {
     final theme = value.theme;
     final BorderRadius resolvedBorderRadius = messageBorderRadius ??
         (isFromSelf ? _kSelfBubbleRadius : _kOtherBubbleRadius);
-    final Color resolvedBubbleColor = messageBackgroundColor ??
-        (isFromSelf
-            ? (theme.chatMessageItemFromSelfBgColor ??
-                theme.lightPrimaryMaterialColor.shade50 ??
-                _kDefaultSelfBubbleColor)
-            : (theme.chatMessageItemFromOthersBgColor ??
-                theme.weakBackgroundColor ??
-                _kDefaultOtherBubbleColor));
+    final Color? themeBackground = isFromSelf
+        ? (theme.chatMessageItemFromSelfBgColor ??
+            theme.lightPrimaryMaterialColor.shade50)
+        : (theme.chatMessageItemFromOthersBgColor ??
+            theme.weakBackgroundColor);
+
+    // 兜底会话类型，未传入时按消息体判断单聊/群聊。
+    final ConvType conversationType = ChatBubbleStyle.resolveConversationType(
+        conversationType: null, message: message);
+
+    // 单聊强制灰底，未覆盖时退回主题或默认色。
+    final Color resolvedBubbleColor = ChatBubbleStyle.resolveBubbleColor(
+        conversationType: conversationType,
+        backgroundColor: messageBackgroundColor,
+        themeBackground: themeBackground,
+        isFromSelf: isFromSelf,
+        selfFallbackColor: _kDefaultSelfBubbleColor,
+        otherFallbackColor: _kDefaultOtherBubbleColor);
     return Container(
         padding: textPadding ?? const EdgeInsets.all(10),
         decoration: BoxDecoration(

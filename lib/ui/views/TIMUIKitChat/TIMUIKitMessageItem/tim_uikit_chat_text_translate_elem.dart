@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_bubble_style.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/special_text/DefaultSpecialTextSpanBuilder.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/link_preview/link_preview_entry.dart';
 
@@ -106,11 +108,19 @@ class _TIMUIKitTextTranslationElemState
       }
     }
 
-    // 按需可通过 widget.backgroundColor 覆盖，否则强制使用 F8F8F8，不受全局 theme 影响。
-    final Color resolvedBubbleColor = widget.backgroundColor ??
-        (widget.isFromSelf
-            ? _kDefaultSelfBubbleColor
-            : _kDefaultOtherBubbleColor);
+    // 兜底会话类型，优先取控制器设置，缺省按消息判定单聊/群聊。
+    final ConvType conversationType = ChatBubbleStyle.resolveConversationType(
+        conversationType: widget.chatModel.conversationType,
+        message: widget.message);
+
+    // 单聊保持灰色背景，其余继续使用翻译消息默认灰。
+    final Color resolvedBubbleColor = ChatBubbleStyle.resolveBubbleColor(
+        conversationType: conversationType,
+        backgroundColor: widget.backgroundColor,
+        themeBackground: null,
+        isFromSelf: widget.isFromSelf,
+        selfFallbackColor: _kDefaultSelfBubbleColor,
+        otherFallbackColor: _kDefaultOtherBubbleColor);
 
     final backgroundColor = isShowJumpState
         ? const Color.fromRGBO(245, 166, 35, 1)

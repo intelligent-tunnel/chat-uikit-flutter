@@ -30,6 +30,7 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageIt
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_face_elem.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/tim_uikit_chat_config.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/tim_uikit_cloud_custom_data.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_bubble_style.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/link_preview/link_preview_entry.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/link_preview/models/link_preview_content.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/link_preview/widgets/link_preview.dart';
@@ -419,9 +420,19 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
             theme.lightPrimaryMaterialColor.shade50)
         : theme.chatMessageItemFromOthersBgColor;
 
-    final Color resolvedBubbleColor = widget.backgroundColor ??
-        themeBackground ??
-        (isFromSelf ? _kDefaultSelfBubbleColor : _kDefaultOtherBubbleColor);
+    // 兜底会话类型，优先使用控制器类型，空值时按消息体推断。
+    final ConvType conversationType = ChatBubbleStyle.resolveConversationType(
+        conversationType: widget.chatModel.conversationType,
+        message: widget.message);
+
+    // 单聊统一灰底，主题或默认色为其他场景兜底。
+    final Color resolvedBubbleColor = ChatBubbleStyle.resolveBubbleColor(
+        conversationType: conversationType,
+        backgroundColor: widget.backgroundColor,
+        themeBackground: themeBackground,
+        isFromSelf: isFromSelf,
+        selfFallbackColor: _kDefaultSelfBubbleColor,
+        otherFallbackColor: _kDefaultOtherBubbleColor);
 
     final backgroundColor = isShowJumpState
         ? const Color.fromRGBO(245, 166, 35, 1)

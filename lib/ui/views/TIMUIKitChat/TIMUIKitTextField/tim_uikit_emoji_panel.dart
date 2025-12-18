@@ -69,8 +69,17 @@ class EmojiPanel extends TIMUIKitStatelessWidget {
 class EmojiItem extends TIMUIKitStatelessWidget {
   EmojiItem({Key? key, required this.name, required this.unicode})
       : super(key: key);
+  /// 表情名称，供占位或调试使用。
   final String name;
+
+  /// 表情对应的 Unicode 码点。
   final int unicode;
+
+  /// Android 端放大的默认表情字号。
+  static const double _kAndroidEmojiFontSize = 24;
+
+  /// 其他端放大的默认表情字号。
+  static const double _kDefaultEmojiFontSize = 30;
 
   // final String toUser;
   // final int type;
@@ -79,7 +88,8 @@ class EmojiItem extends TIMUIKitStatelessWidget {
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     return DefaultTextStyle(
       style: TextStyle(
-        fontSize: (PlatformUtils().isAndroid) ? 20 : 26,
+        fontSize:
+            (PlatformUtils().isAndroid) ? _kAndroidEmojiFontSize : _kDefaultEmojiFontSize,
         color: hexToColor("f9453d")
       ),
       child: Text(

@@ -14,6 +14,7 @@ import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_glo
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/constants/history_message_constant.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_bubble_style.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/sound_record.dart';
 import 'TIMUIKitMessageReaction/tim_uikit_message_reaction_show_panel.dart';
@@ -196,11 +197,19 @@ class _TIMUIKitSoundElemState extends TIMUIKitState<TIMUIKitSoundElem> {
             theme.lightPrimaryMaterialColor.shade50)
         : theme.chatMessageItemFromOthersBgColor;
 
-    final Color resolvedBubbleColor = widget.backgroundColor ??
-        themeBackground ??
-        (widget.isFromSelf
-            ? _kDefaultSelfBubbleColor
-            : _kDefaultOtherBubbleColor);
+    // 兜底会话类型，优先取外部传入，其次依据消息体判定单/群聊。
+    final ConvType conversationType = ChatBubbleStyle.resolveConversationType(
+        conversationType: widget.chatModel.conversationType,
+        message: widget.message);
+
+    // 单聊强制灰底，保留主题和默认色兜底。
+    final Color resolvedBubbleColor = ChatBubbleStyle.resolveBubbleColor(
+        conversationType: conversationType,
+        backgroundColor: widget.backgroundColor,
+        themeBackground: themeBackground,
+        isFromSelf: widget.isFromSelf,
+        selfFallbackColor: _kDefaultSelfBubbleColor,
+        otherFallbackColor: _kDefaultOtherBubbleColor);
 
     final BorderRadius resolvedBorderRadius = widget.borderRadius ??
         (widget.isFromSelf ? _kSelfBubbleRadius : _kOtherBubbleRadius);

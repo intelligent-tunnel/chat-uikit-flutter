@@ -8,6 +8,8 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/common_utils.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_bubble_style.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/TIMUIKitMessageReaction/tim_uikit_message_reaction_show_panel.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/tim_uikit_cloud_custom_data.dart';
 
@@ -142,14 +144,25 @@ class _TIMUIKitMessageReactionWrapperState
       }
     }
 
-    final Color resolvedBubbleColor = widget.backgroundColor ??
-        (widget.isFromSelf
-            ? (theme.chatMessageItemFromSelfBgColor ??
-                theme.lightPrimaryMaterialColor.shade50 ??
-                _kDefaultSelfBubbleColor)
-            : (theme.chatMessageItemFromOthersBgColor ??
-                theme.weakBackgroundColor ??
-                _kDefaultOtherBubbleColor));
+    final Color? themeBackground = widget.isFromSelf
+        ? (theme.chatMessageItemFromSelfBgColor ??
+            theme.lightPrimaryMaterialColor.shade50)
+        : (theme.chatMessageItemFromOthersBgColor ??
+            theme.weakBackgroundColor);
+
+    // 兜底会话类型，优先取控制器类型，缺省按消息体推断单聊/群聊。
+    final ConvType conversationType = ChatBubbleStyle.resolveConversationType(
+        conversationType: widget.chatModel.conversationType,
+        message: widget.message);
+
+    // 单聊统一灰底，其余使用主题或默认色。
+    final Color resolvedBubbleColor = ChatBubbleStyle.resolveBubbleColor(
+        conversationType: conversationType,
+        backgroundColor: widget.backgroundColor,
+        themeBackground: themeBackground,
+        isFromSelf: widget.isFromSelf,
+        selfFallbackColor: _kDefaultSelfBubbleColor,
+        otherFallbackColor: _kDefaultOtherBubbleColor);
 
     final backgroundColor = isShowJumpState
         ? const Color.fromRGBO(245, 166, 35, 1)
