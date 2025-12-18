@@ -52,6 +52,13 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
   /// 预留给关闭/下载按钮的底部空间，避免与视频控制条重叠。
   static const double _kControlBottomPadding = 60;
 
+  /// 视频暂停/显示控制层时的全屏遮罩底色。
+  ///
+  /// - 用途：BetterPlayer 默认会用 `controlBarColor` 作为「中间点击区域」的全屏背景，
+  ///   暂停时会出现一整块偏黑的半透明蒙版；这里将其改为透明以保持画面清爽。
+  /// - 业务约束：仅影响 1v1 聊天的视频预览页（`VideoScreen`），不影响其它视频模块。
+  static const Color _kVideoControlsMaskColor = Colors.transparent;
+
   BetterPlayerController? _betterPlayerController;
 
   @override
@@ -60,6 +67,11 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
     _initializePlayer();
   }
 
+  /// 初始化视频播放器控制器。
+  ///
+  /// - 用途：根据消息来源（本地/网络）构建 `BetterPlayerController` 并自动播放。
+  /// - 返回：Future<void>，初始化完成后会触发 `setState` 刷新界面。
+  /// - 业务约束：仅在 `mounted == true` 时更新状态，避免页面销毁后回调导致异常。
   Future<void> _initializePlayer() async {
     try {
       final info = await getMessageInfo();
@@ -84,6 +96,7 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
           allowedScreenSleep: false,
           fullScreenByDefault: false,
           controlsConfiguration: const BetterPlayerControlsConfiguration(
+            controlBarColor: _kVideoControlsMaskColor,
             enableFullscreen: false,
             enablePlayPause: true,
             enableProgressBar: true,
