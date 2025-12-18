@@ -30,6 +30,12 @@ import 'package:tencent_keyboard_visibility/tencent_keyboard_visibility.dart';
 
 GlobalKey<_TIMUIKitTextFieldLayoutNarrowState> narrowTextFieldKey = GlobalKey();
 
+/// 窄屏输入框正文字号，提升文字与表情的可读性。
+const double _kNarrowInputFontSize = 16;
+
+/// 窄屏输入框提示文字字号，保持与正文相近的观感。
+const double _kNarrowInputHintFontSize = 16;
+
 class TIMUIKitTextFieldLayoutNarrow extends StatefulWidget {
   /// sticker panel customization
   final CustomStickerPanel? customStickerPanel;
@@ -706,7 +712,9 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                   maxLines: 5,
                                   minLines: 1,
                                   focusNode: widget.focusNode,
-                                  style: const TextStyle(fontSize: 14, color: Color(0xFF282731)),
+                                  style: const TextStyle(
+                                      fontSize: _kNarrowInputFontSize,
+                                      color: Color(0xFF282731)),
                                   onChanged: debounceFunc,
                                   onTap: () {
                                     showKeyboard = true;
@@ -739,7 +747,9 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                       border: InputBorder.none,
                                       isDense: true,
                                       contentPadding: const EdgeInsets.only(bottom: 6),
-                                      hintStyle: const TextStyle(color: Color(0xFFAEA4A3), fontSize: 14),
+                                      hintStyle: const TextStyle(
+                                          color: Color(0xFFAEA4A3),
+                                          fontSize: _kNarrowInputHintFontSize),
                                       hintText: widget.hintText ?? ''),
                                   controller: widget.textEditingController,
                                   scrollController: _textScrollController,

@@ -5,6 +5,12 @@ import 'package:tim_ui_kit_sticker_plugin/utils/tim_custom_face_data.dart';
 
 ///emoji/image text
 class EmojiText extends SpecialText {
+  /// 表情字号基础倍数，便于独立于文本字号微调。
+  static const double _kEmojiSizeMultiplier = 2;
+
+  /// 当文本样式缺省时的表情兜底字号。
+  static const double _kDefaultEmojiFontSize = 18;
+
   EmojiText(TextStyle? textStyle,
       {this.start,
       this.isUseQQPackage = false,
@@ -29,11 +35,11 @@ class EmojiText extends SpecialText {
         customEmojiStickerList: customEmojiStickerList);
 
     if (emojiUtil.emojiMap.containsKey(key)) {
-      double size = 16;
+      double size = _kDefaultEmojiFontSize;
 
       final TextStyle ts = textStyle!;
       if (ts.fontSize != null) {
-        size = ts.fontSize! * 1.44;
+        size = ts.fontSize! * _kEmojiSizeMultiplier;
       }
 
       if (isUseQQPackage == true && (emojiUtil.emojiKeyCategoryMap["4349"]?.contains(key) ?? false)) {
