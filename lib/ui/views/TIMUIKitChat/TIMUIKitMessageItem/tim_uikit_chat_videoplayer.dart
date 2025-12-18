@@ -59,6 +59,13 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
   /// 预留给关闭/下载按钮的底部空间，避免与视频控制条重叠。
   static const double _kControlBottomPadding = 60;
 
+  /// 默认视频展示宽高比（用于兜底）。
+  ///
+  /// - 用途：当视频封面宽高为空/异常时，避免 AspectRatio 计算失败导致布局跳动。
+  /// - 返回：默认宽高比（9:16）。
+  /// - 约束：仅用于 UI 展示兜底，不代表真实视频比例。
+  static const double _kDefaultAspectRatio = 9 / 16;
+
   /// 视频控制层的遮罩背景色。
   ///
   /// - 用途：Android(Material) 默认会使用 `controlBarColor` 作为「点击区域」的全屏背景，
