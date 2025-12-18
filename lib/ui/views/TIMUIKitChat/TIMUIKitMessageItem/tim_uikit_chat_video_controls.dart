@@ -3,12 +3,8 @@ import 'dart:async';
 import 'package:better_player_plus/better_player_plus.dart';
 import 'package:flutter/material.dart';
 
-/// 聊天视频预览页控制条样式配置（用于快速调参，模拟主流视频 App 的进度条体验）。
-///
-/// - 用途：集中管理播放/暂停按钮、时间文本、进度条（统一圆角容器承载）等视觉参数。
-/// - 入参：通过构造函数传入各项样式字段；不传则使用默认值。
-/// - 返回：纯数据对象，不包含业务逻辑。
-/// - 约束：该样式仅用于聊天视频预览页的 BetterPlayer 自定义控制条。
+/// 聊天视频预览页控制条样式配置，集中管理播放按钮/时间/进度条等视觉参数，默认值模拟常见视频 App
+/// 体验，仅用于聊天视频预览页的 BetterPlayer 自定义控制条。
 @immutable
 class TIMUIKitChatVideoControlsStyle {
   /// 播放/暂停图标颜色。
@@ -86,17 +82,9 @@ class TIMUIKitChatVideoControlsStyle {
   });
 }
 
-/// 1v1 聊天视频预览页的 BetterPlayer 自定义控制条（可配置进度条样式）。
-///
-/// - 用途：
-///   1) 替换 BetterPlayer 默认 Material 控制层在 Android 上的整屏发黑遮罩；
-///   2) 提供可调的控制条样式（统一圆角容器包裹「播放按钮/时间/进度条/总时长」）。
-/// - 入参：
-///   - [betterPlayerController] BetterPlayer 控制器（用于播放/暂停/seek 与读取当前进度）。
-///   - [onPlayerVisibilityChanged] 控制条显隐回调，用于同步 BetterPlayer 内部可见性流。
-///   - [style] 控制条样式配置。
-/// - 返回：覆盖在视频上的控制层 Widget。
-/// - 约束：仅用于聊天视频预览页；不负责关闭/下载按钮等外层控件。
+/// 1v1 聊天视频预览页的 BetterPlayer 自定义控制条（覆盖在视频上的控制层）。
+/// 替换默认遮罩并承载播放按钮/时间/进度条，需传入 BetterPlayer 控制器与显隐回调，可配置样式。
+/// 仅用于聊天视频预览页的控制层，不负责关闭/下载按钮。
 class TIMUIKitChatVideoControls extends StatefulWidget {
   const TIMUIKitChatVideoControls({
     super.key,
@@ -134,6 +122,9 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
 
   /// 拖动进度条时的临时毫秒值；为空表示未在拖动中，使用视频真实进度。
   double? _draggingPositionMs;
+
+  /// 允许重播的进度误差毫秒数（用于兜底浮点误差导致的“未归零”情况）。
+  static const int _kReplayThresholdMs = 500;
 
   @override
   void initState() {
@@ -244,13 +235,25 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
   }
 
   /// 切换视频播放/暂停状态。
+  /// - 若当前进度已到末尾，再次点击播放时会先跳回起点确保能重播。
   Future<void> _togglePlayPause() async {
     try {
-      final bool isPlaying = _videoPlayerController?.value.isPlaying ?? false;
+      final VideoPlayerValue? value = _videoPlayerController?.value;
+      final bool isPlaying = value?.isPlaying ?? false;
       if (isPlaying) {
         await widget.betterPlayerController.pause();
         _cancelAutoHideTimer();
       } else {
+        final Duration? duration = value?.duration;
+        final Duration? position = value?.position;
+        final bool reachEnd = duration != null &&
+            position != null &&
+            duration.inMilliseconds > 0 &&
+            position.inMilliseconds >=
+                duration.inMilliseconds - _kReplayThresholdMs;
+        if (reachEnd) {
+          await widget.betterPlayerController.seekTo(Duration.zero);
+        }
         await widget.betterPlayerController.play();
         _syncAutoHideState();
       }
