@@ -222,6 +222,18 @@ class _TIMUIKitTextElemState extends TIMUIKitState<TIMUIKitTextElem> {
         selfFallbackColor: _kDefaultSelfBubbleColor,
         otherFallbackColor: _kDefaultOtherBubbleColor);
 
+    // 单聊自己消息文字统一使用白色，其他场景沿用外部或默认颜色。
+    final Color? resolvedTextColor = ChatBubbleStyle.resolveTextColor(
+        conversationType: conversationType,
+        isFromSelf: widget.isFromSelf,
+        defaultColor: widget.fontStyle?.color);
+    final TextStyle resolvedTextStyle = (widget.fontStyle ??
+            TextStyle(
+                fontSize: isDesktopScreen ? 14 : 16,
+                textBaseline: TextBaseline.ideographic,
+                height: widget.chatModel.chatConfig.textHeight))
+        .copyWith(color: resolvedTextColor ?? widget.fontStyle?.color);
+
     final backgroundColor = isShowJumpState
         ? const Color.fromRGBO(245, 166, 35, 1)
         : resolvedBubbleColor;
@@ -241,17 +253,10 @@ class _TIMUIKitTextElemState extends TIMUIKitState<TIMUIKitTextElem> {
           // You can render the widget from extension directly, with a [TextStyle] optionally.
           widget.chatModel.chatConfig.urlPreviewType != UrlPreviewType.none
               ? textWithLink!(
-                  style: widget.fontStyle ??
-                      TextStyle(
-                          fontSize: isDesktopScreen ? 14 : 16,
-                          textBaseline: TextBaseline.ideographic,
-                          height: widget.chatModel.chatConfig.textHeight))
+                  style: resolvedTextStyle)
               : ExtendedText(widget.message.textElem?.text ?? "",
                   softWrap: true,
-                  style: widget.fontStyle ??
-                      TextStyle(
-                          fontSize: isDesktopScreen ? 14 : 16,
-                          height: widget.chatModel.chatConfig.textHeight),
+                  style: resolvedTextStyle,
                   specialTextSpanBuilder: DefaultSpecialTextSpanBuilder(
                     isUseQQPackage: widget.chatModel.chatConfig
                             .stickerPanelConfig?.useQQStickerPackage ??

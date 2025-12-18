@@ -62,6 +62,14 @@ class TIMUIKitCustomElem extends TIMUIKitStatelessWidget {
         isFromSelf: isFromSelf,
         selfFallbackColor: _kDefaultSelfBubbleColor,
         otherFallbackColor: _kDefaultOtherBubbleColor);
+    final Color? resolvedTextColor = ChatBubbleStyle.resolveTextColor(
+        conversationType: conversationType,
+        isFromSelf: isFromSelf,
+        defaultColor: messageFontStyle?.color);
+    final TextStyle resolvedTextStyle =
+        (messageFontStyle ?? const TextStyle()).copyWith(
+            color: resolvedTextColor ?? messageFontStyle?.color);
+
     return Container(
         padding: textPadding ?? const EdgeInsets.all(10),
         decoration: BoxDecoration(
@@ -70,7 +78,12 @@ class TIMUIKitCustomElem extends TIMUIKitStatelessWidget {
         ),
         constraints: const BoxConstraints(maxWidth: 240),
         child: Column(
-          children: [Text(TIM_t("自定义消息"))],
+          children: [
+            Text(
+              TIM_t("自定义消息"),
+              style: resolvedTextStyle,
+            )
+          ],
         ));
   }
 }

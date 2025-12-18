@@ -632,15 +632,15 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     final bool hasSendableText = _hasSendableText(widget.textEditingController.text);
 
     final Widget inputPanel = Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      constraints: const BoxConstraints(minHeight: 54),
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      constraints: const BoxConstraints(minHeight: 40),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [
-        BoxShadow(
-          color: Color(0x1A000000),
-          blurRadius: 18,
-          offset: Offset(0, 1),
-        )
+      decoration: BoxDecoration(color: Color(0xFFF2F2F2), borderRadius: BorderRadius.circular(28), boxShadow: const [
+        // BoxShadow(
+        //   color: Color(0x1A000000),
+        //   blurRadius: 18,
+        //   offset: Offset(0, 1),
+        // )
       ]),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,

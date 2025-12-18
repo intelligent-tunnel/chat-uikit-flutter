@@ -8,6 +8,12 @@ class ChatBubbleStyle {
   /// 单聊默认的灰色气泡底色，保证 1v1 对话风格统一。
   static const Color c2cBubbleBackground = Color(0xFFF2F2F2);
 
+  /// 单聊自己消息默认底色，统一使用品牌蓝。
+  static const Color c2cSelfBubbleBackground = Color(0xFF2780FE);
+
+  /// 单聊自己消息文本默认颜色，确保深色底下可读。
+  static const Color c2cSelfTextColor = Colors.white;
+
   /// 计算气泡背景色。
   /// 入参：conversationType 会话类型；backgroundColor 外部指定颜色；themeBackground 主题色；
   /// isFromSelf 是否本人；selfFallbackColor 自己消息兜底色；otherFallbackColor 对端兜底色。
@@ -26,6 +32,9 @@ class ChatBubbleStyle {
     }
 
     if (conversationType == ConvType.c2c) {
+      if (isFromSelf) {
+        return c2cSelfBubbleBackground;
+      }
       return c2cBubbleBackground;
     }
 
@@ -53,5 +62,20 @@ class ChatBubbleStyle {
     }
 
     return ConvType.c2c;
+  }
+
+  /// 计算气泡文本颜色。
+  /// 入参：conversationType 会话类型；isFromSelf 是否本人；defaultColor 默认文本颜色。
+  /// 返回：最终文本颜色。
+  /// 业务约束：单聊自己消息强制白字，其余保持传入颜色，避免蓝底下文字不可读。
+  static Color? resolveTextColor({
+    required ConvType conversationType,
+    required bool isFromSelf,
+    required Color? defaultColor,
+  }) {
+    if (conversationType == ConvType.c2c && isFromSelf) {
+      return c2cSelfTextColor;
+    }
+    return defaultColor;
   }
 }

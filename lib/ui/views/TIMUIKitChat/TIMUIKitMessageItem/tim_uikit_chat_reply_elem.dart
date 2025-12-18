@@ -156,17 +156,20 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
     );
   }
 
-  TextStyle _defaultSummaryStyle(TUITheme? theme) {
+  /// 回复块摘要样式，支持外部指定颜色以适配单聊蓝底白字。
+  TextStyle _defaultSummaryStyle(TUITheme? theme, {Color? textColor}) {
     return TextStyle(
       fontSize: 12,
-      color: theme?.weakTextColor,
+      color: textColor ?? theme?.weakTextColor,
       fontWeight: FontWeight.w400,
       height: 1.3,
     );
   }
 
-  Widget _defaultRawMessageText(String text, TUITheme? theme) {
-    final style = _defaultSummaryStyle(theme);
+  /// 回复块默认文本渲染，支持自定义颜色保障深色背景可读。
+  Widget _defaultRawMessageText(String text, TUITheme? theme,
+      {Color? textColor}) {
+    final style = _defaultSummaryStyle(theme, textColor: textColor);
     return ExtendedText(
       text,
       maxLines: 2,
@@ -177,19 +180,22 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
     );
   }
 
-  _renderMessageSummary(TUITheme? theme) {
+  _renderMessageSummary(TUITheme? theme, {Color? textColor}) {
     try {
       final RepliedMessageAbstract repliedMessageAbstract =
           RepliedMessageAbstract.fromJson(
               jsonDecode(repliedMessage?.messageAbstract ?? ""));
       if (TencentUtils.checkString(repliedMessageAbstract.summary) != null) {
-        return _defaultRawMessageText(repliedMessageAbstract.summary!, theme);
+        return _defaultRawMessageText(repliedMessageAbstract.summary!, theme,
+            textColor: textColor);
       }
       return _defaultRawMessageText(
-          repliedMessage?.messageAbstract ?? TIM_t("[未知消息]"), theme);
+          repliedMessage?.messageAbstract ?? TIM_t("[未知消息]"), theme,
+          textColor: textColor);
     } catch (e) {
       return _defaultRawMessageText(
-          repliedMessage?.messageAbstract ?? TIM_t("[未知消息]"), theme);
+          repliedMessage?.messageAbstract ?? TIM_t("[未知消息]"), theme,
+          textColor: textColor);
     }
   }
 
@@ -208,13 +214,14 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
     }
   }
 
-  _rawMessageBuilder(V2TimMessage? message, TUITheme? theme) {
+  _rawMessageBuilder(V2TimMessage? message, TUITheme? theme,
+      {Color? textColor}) {
     if (repliedMessage == null) {
       return const SizedBox(width: 0, height: 12);
     }
     if (message == null) {
       if (repliedMessage?.messageAbstract != null) {
-        return _renderMessageSummary(theme);
+        return _renderMessageSummary(theme, textColor: textColor);
       }
       return const SizedBox(width: 0, height: 12);
     }
@@ -225,7 +232,8 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
 
     if (isRevokedMsg) {
       return _defaultRawMessageText(
-          isAdminRevoke ? TIM_t("[消息被管理员撤回]") : TIM_t("[消息被撤回]"), theme);
+          isAdminRevoke ? TIM_t("[消息被管理员撤回]") : TIM_t("[消息被撤回]"), theme,
+          textColor: textColor);
     }
 
     final messageType = message.elemType;
@@ -235,18 +243,22 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
             ? widget.chatModel.abstractMessageBuilder!(message)
             : null;
     if (customAbstractMessage != null) {
-      return _defaultRawMessageText(customAbstractMessage, theme);
+      return _defaultRawMessageText(customAbstractMessage, theme,
+          textColor: textColor);
     }
     switch (messageType) {
       case MessageElemType.V2TIM_ELEM_TYPE_CUSTOM:
-        return _defaultRawMessageText(TIM_t("[自定义]"), theme);
+        return _defaultRawMessageText(TIM_t("[自定义]"), theme,
+            textColor: textColor);
       case MessageElemType.V2TIM_ELEM_TYPE_SOUND:
         if (message.soundElem == null) {
-          return _defaultRawMessageText(TIM_t("[语音消息]"), theme);
+          return _defaultRawMessageText(TIM_t("[语音消息]"), theme,
+              textColor: textColor);
         }
         return _ReplyVoicePreview(
           message: message,
           chatModel: widget.chatModel,
+          textColor: textColor,
         );
       case MessageElemType.V2TIM_ELEM_TYPE_TEXT:
         return ExtendedText(
@@ -254,7 +266,7 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           softWrap: true,
-          style: _defaultSummaryStyle(theme),
+          style: _defaultSummaryStyle(theme, textColor: textColor),
           specialTextSpanBuilder: _buildSpanBuilder(),
         );
       case MessageElemType.V2TIM_ELEM_TYPE_FACE:
@@ -286,7 +298,8 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
             isFrom: "reply",
             isShowMessageReaction: false);
       case MessageElemType.V2TIM_ELEM_TYPE_LOCATION:
-        return _defaultRawMessageText(TIM_t("[位置]"), theme);
+        return _defaultRawMessageText(TIM_t("[位置]"), theme,
+            textColor: textColor);
       case MessageElemType.V2TIM_ELEM_TYPE_MERGER:
         return TIMUIKitMergerElem(
             model: widget.chatModel,
@@ -434,6 +447,18 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
         selfFallbackColor: _kDefaultSelfBubbleColor,
         otherFallbackColor: _kDefaultOtherBubbleColor);
 
+    // 单聊自己消息文本强制白色，其余场景沿用原有颜色。
+    final Color? resolvedTextColor = ChatBubbleStyle.resolveTextColor(
+        conversationType: conversationType,
+        isFromSelf: isFromSelf,
+        defaultColor: widget.fontStyle?.color);
+    final TextStyle resolvedTextStyle = (widget.fontStyle ??
+            TextStyle(
+                fontSize: isDesktopScreen ? 14 : 16,
+                textBaseline: TextBaseline.ideographic,
+                height: widget.chatModel.chatConfig.textHeight))
+        .copyWith(color: resolvedTextColor ?? widget.fontStyle?.color);
+
     final backgroundColor = isShowJumpState
         ? const Color.fromRGBO(245, 166, 35, 1)
         : resolvedBubbleColor;
@@ -486,19 +511,20 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    repliedMessage != null
-                        ? "${repliedMessage!.messageSender}:"
-                        : "",
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: theme.weakTextColor,
-                        fontWeight: FontWeight.w500),
-                  ),
+              Text(
+                repliedMessage != null
+                    ? "${repliedMessage!.messageSender}:"
+                    : "",
+                style: TextStyle(
+                    fontSize: 12,
+                    color: resolvedTextColor ?? theme.weakTextColor,
+                    fontWeight: FontWeight.w500),
+              ),
                   const SizedBox(
                     height: 4,
                   ),
-                  _rawMessageBuilder(rawMessage, theme)
+                  _rawMessageBuilder(rawMessage, theme,
+                      textColor: resolvedTextColor)
                 ],
               ),
             ),
@@ -509,17 +535,10 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
             // You can render the widget from extension directly, with a [TextStyle] optionally.
             widget.chatModel.chatConfig.urlPreviewType != UrlPreviewType.none
                 ? textWithLink!(
-                    style: widget.fontStyle ??
-                        TextStyle(
-                            fontSize: isDesktopScreen ? 14 : 16,
-                            textBaseline: TextBaseline.ideographic,
-                            height: widget.chatModel.chatConfig.textHeight))
+                    style: resolvedTextStyle)
                 : ExtendedText(widget.message.textElem?.text ?? "",
                     softWrap: true,
-                    style: widget.fontStyle ??
-                        TextStyle(
-                            fontSize: isDesktopScreen ? 14 : 16,
-                            height: widget.chatModel.chatConfig.textHeight),
+                    style: resolvedTextStyle,
                     specialTextSpanBuilder: DefaultSpecialTextSpanBuilder(
                       isUseQQPackage: widget.chatModel.chatConfig
                               .stickerPanelConfig?.useQQStickerPackage ??
@@ -556,8 +575,11 @@ class _TIMUIKitReplyElemState extends TIMUIKitState<TIMUIKitReplyElem> {
 class _ReplyVoicePreview extends StatefulWidget {
   final V2TimMessage message;
   final TUIChatSeparateViewModel chatModel;
+  /// 语音预览文本颜色，单聊蓝底时强制白色保障可读性。
+  final Color? textColor;
 
-  const _ReplyVoicePreview({required this.message, required this.chatModel});
+  const _ReplyVoicePreview(
+      {required this.message, required this.chatModel, this.textColor});
 
   @override
   State<_ReplyVoicePreview> createState() => _ReplyVoicePreviewState();
@@ -680,6 +702,7 @@ class _ReplyVoicePreviewState extends State<_ReplyVoicePreview>
   Widget build(BuildContext context) {
     final bool shouldPlaying =
         widget.chatModel.currentPlayedMsgId == widget.message.msgID;
+    final Color waveBaseColor = widget.textColor ?? const Color(0xFFFBD455);
     if (shouldPlaying != _isPlaying) {
       _setPlaying(shouldPlaying);
     }
@@ -700,15 +723,16 @@ class _ReplyVoicePreviewState extends State<_ReplyVoicePreview>
             child: _ReplyVoiceWaveform(
               animation: _waveAnimation,
               active: _isPlaying,
+              barBaseColor: waveBaseColor,
             ),
           ),
           const SizedBox(width: 12),
           Text(
             durationLabel,
-            style: const TextStyle(
-              color: Color(0xFF101010),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            style: TextStyle(
+              color: widget.textColor ?? const Color(0xFF101010),
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -718,10 +742,15 @@ class _ReplyVoicePreviewState extends State<_ReplyVoicePreview>
 }
 
 class _ReplyVoiceWaveform extends StatelessWidget {
-  const _ReplyVoiceWaveform({required this.animation, required this.active});
+  const _ReplyVoiceWaveform(
+      {required this.animation,
+      required this.active,
+      required this.barBaseColor});
 
   final Animation<double> animation;
   final bool active;
+  /// 波浪线基色，单聊自己消息传入白色。
+  final Color barBaseColor;
 
   static const List<double> _barHeights = <double>[
     4,
@@ -749,6 +778,7 @@ class _ReplyVoiceWaveform extends StatelessWidget {
               height: _computeHeight(_barHeights[index], progress, index),
               opacity: _computeOpacity(progress, index),
               active: active,
+              barBaseColor: barBaseColor,
             );
           }),
         );
@@ -777,18 +807,22 @@ class _ReplyVoiceWaveform extends StatelessWidget {
 
 class _ReplyWaveBar extends StatelessWidget {
   const _ReplyWaveBar(
-      {required this.height, required this.opacity, required this.active});
+      {required this.height,
+      required this.opacity,
+      required this.active,
+      required this.barBaseColor});
 
   final double height;
   final double opacity;
   final bool active;
+  /// 波浪线基色，结合透明度生成动态颜色。
+  final Color barBaseColor;
 
   @override
   Widget build(BuildContext context) {
-    const Color baseColor = Color(0xFFFBD455);
     final Color barColor = active
-        ? baseColor.withValues(alpha: opacity.clamp(0.5, 1.0))
-        : baseColor.withValues(alpha: 0.4);
+        ? barBaseColor.withValues(alpha: opacity.clamp(0.5, 1.0))
+        : barBaseColor.withValues(alpha: 0.4);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       width: 6,

@@ -122,6 +122,21 @@ class _TIMUIKitTextTranslationElemState
         selfFallbackColor: _kDefaultSelfBubbleColor,
         otherFallbackColor: _kDefaultOtherBubbleColor);
 
+    // 单聊自己翻译气泡文字统一白色，其他场景沿用默认颜色。
+    final Color? resolvedTextColor = ChatBubbleStyle.resolveTextColor(
+        conversationType: conversationType,
+        isFromSelf: widget.isFromSelf,
+        defaultColor: widget.fontStyle?.color);
+    final TextStyle resolvedTextStyle = (widget.fontStyle ??
+            TextStyle(
+                fontSize: isDesktopScreen ? 14 : 16,
+                textBaseline: TextBaseline.ideographic,
+                height: widget.chatModel.chatConfig.textHeight))
+        .copyWith(color: resolvedTextColor ?? widget.fontStyle?.color);
+    // 翻译提示颜色，单聊蓝底跟随白字，其他场景降透明度弱化。
+    final Color tipsColor =
+        (resolvedTextColor ?? const Color(0xFF282C34)).withOpacity(0.7);
+
     final backgroundColor = isShowJumpState
         ? const Color.fromRGBO(245, 166, 35, 1)
         : resolvedBubbleColor;
@@ -132,7 +147,7 @@ class _TIMUIKitTextTranslationElemState
     final String? translateText = localCustomData.translatedText;
 
     final textWithLink = LinkPreviewEntry.getHyperlinksText(translateText ?? "",
-        widget.chatModel.chatConfig.isSupportMarkdownForTextMessage,
+            widget.chatModel.chatConfig.isSupportMarkdownForTextMessage,
         onLinkTap: widget.chatModel.chatConfig.onTapLink,
         isUseQQPackage: widget
                 .chatModel.chatConfig.stickerPanelConfig?.useQQStickerPackage ??
@@ -168,17 +183,10 @@ class _TIMUIKitTextTranslationElemState
                 widget.chatModel.chatConfig.urlPreviewType !=
                         UrlPreviewType.none
                     ? textWithLink!(
-                        style: widget.fontStyle ??
-                            TextStyle(
-                                fontSize: isDesktopScreen ? 14 : 16,
-                                textBaseline: TextBaseline.ideographic,
-                                height: widget.chatModel.chatConfig.textHeight))
+                        style: resolvedTextStyle)
                     : ExtendedText(translateText!,
                         softWrap: true,
-                        style: widget.fontStyle ??
-                            TextStyle(
-                                fontSize: isDesktopScreen ? 14 : 16,
-                                height: widget.chatModel.chatConfig.textHeight),
+                        style: resolvedTextStyle,
                         specialTextSpanBuilder: DefaultSpecialTextSpanBuilder(
                           isUseQQPackage: widget.chatModel.chatConfig
                                   .stickerPanelConfig?.useQQStickerPackage ??
@@ -205,9 +213,9 @@ class _TIMUIKitTextTranslationElemState
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.check_circle,
-                        color: Color(0x72282c34),
+                        color: tipsColor.withOpacity(0.7),
                         size: 12,
                       ),
                       const SizedBox(
@@ -215,8 +223,7 @@ class _TIMUIKitTextTranslationElemState
                       ),
                       Text(
                         TIM_t("翻译完成"),
-                        style: const TextStyle(
-                            color: Color(0x72282c34), fontSize: 10),
+                        style: TextStyle(color: tipsColor, fontSize: 10),
                       )
                     ],
                   )

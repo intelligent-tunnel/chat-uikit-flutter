@@ -211,6 +211,15 @@ class _TIMUIKitSoundElemState extends TIMUIKitState<TIMUIKitSoundElem> {
         selfFallbackColor: _kDefaultSelfBubbleColor,
         otherFallbackColor: _kDefaultOtherBubbleColor);
 
+    // 单聊自己语音气泡文字统一白色，防止蓝底下难以识别。
+    final Color? resolvedTextColor = ChatBubbleStyle.resolveTextColor(
+        conversationType: conversationType,
+        isFromSelf: widget.isFromSelf,
+        defaultColor: widget.fontStyle?.color);
+    final TextStyle resolvedTextStyle =
+        (widget.fontStyle ?? const TextStyle()).copyWith(
+            color: resolvedTextColor ?? widget.fontStyle?.color);
+
     final BorderRadius resolvedBorderRadius = widget.borderRadius ??
         (widget.isFromSelf ? _kSelfBubbleRadius : _kOtherBubbleRadius);
     if (widget.isShowJump) {
@@ -245,7 +254,7 @@ class _TIMUIKitSoundElemState extends TIMUIKitState<TIMUIKitSoundElem> {
                       Container(width: _getSoundLen()),
                       Text(
                         "''${stateElement.duration} ",
-                        style: widget.fontStyle,
+                        style: resolvedTextStyle,
                       ),
                       isPlaying
                           ? Image.asset(
@@ -261,11 +270,11 @@ class _TIMUIKitSoundElemState extends TIMUIKitState<TIMUIKitSoundElem> {
                               height: 16,
                             ),
                     ]
-                  : [
-                      isPlaying
-                          ? Image.asset(
-                              'images/play_voice_receive.gif',
-                              package: 'tencent_cloud_chat_uikit',
+                    : [
+                        isPlaying
+                            ? Image.asset(
+                                'images/play_voice_receive.gif',
+                                package: 'tencent_cloud_chat_uikit',
                               width: 16,
                               height: 16,
                             )
@@ -277,7 +286,7 @@ class _TIMUIKitSoundElemState extends TIMUIKitState<TIMUIKitSoundElem> {
                             ),
                       Text(
                         " ${stateElement.duration}''",
-                        style: widget.fontStyle,
+                        style: resolvedTextStyle,
                       ),
                       Container(width: _getSoundLen()),
                     ],
