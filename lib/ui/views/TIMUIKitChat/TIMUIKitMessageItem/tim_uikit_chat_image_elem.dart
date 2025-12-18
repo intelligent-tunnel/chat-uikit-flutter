@@ -70,6 +70,8 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
   final TUIChatGlobalModel globalModel = serviceLocator<TUIChatGlobalModel>();
   final TUIChatGlobalModel model = serviceLocator<TUIChatGlobalModel>();
   final MessageService _messageService = serviceLocator<MessageService>();
+  /// 图片/视频消息统一的圆角半径，保证单聊媒体展示风格一致。
+  static const double _kMediaBubbleRadius = 12;
   Widget? imageItem;
 
   @override
@@ -596,6 +598,8 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
     return errorDisplay(context, theme);
   }
 
+  /// 构建图片消息内容，限制展示尺寸并统一圆角裁剪，支持桌面端点击预览。
+  /// [value] 提供当前主题与屏幕信息。
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final theme = value.theme;
@@ -613,13 +617,18 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
         isShowMessageReaction: widget.isShowMessageReaction ?? true,
         message: widget.message,
         child: LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
-          return ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: constraints.maxWidth * (isDesktopScreen ? 0.4 : 0.5),
-              minWidth: 64,
-              maxHeight: 256,
+          final Widget? imageContent =
+              _renderImage(heroTag, theme, originalImg: originalImg, smallImg: smallImg);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(_kMediaBubbleRadius),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: constraints.maxWidth * (isDesktopScreen ? 0.4 : 0.5),
+                minWidth: 64,
+                maxHeight: 256,
+              ),
+              child: imageContent ?? const SizedBox.shrink(),
             ),
-            child: _renderImage(heroTag, theme, originalImg: originalImg, smallImg: smallImg),
           );
         }));
   }

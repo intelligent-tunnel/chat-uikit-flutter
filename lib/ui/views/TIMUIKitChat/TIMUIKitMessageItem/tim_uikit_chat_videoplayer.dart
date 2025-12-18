@@ -49,6 +49,9 @@ class CurrentVideoInfo {
 class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
   final String _tag = "TencentCloudChatMessageVideoPlayer";
 
+  /// 预留给关闭/下载按钮的底部空间，避免与视频控制条重叠。
+  static const double _kControlBottomPadding = 60;
+
   BetterPlayerController? _betterPlayerController;
 
   @override
@@ -96,6 +99,7 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
           betterPlayerConfiguration,
           betterPlayerDataSource: dataSource,
         );
+        _attachPositionListener();
 
         if (mounted) {
           setState(() {});
@@ -108,6 +112,7 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
 
   @override
   void dispose() {
+    _detachPositionListener();
     _betterPlayerController?.dispose();
     super.dispose();
   }
@@ -121,30 +126,42 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
         if (lp.isNotEmpty) {
           console("view sending message video path");
           if (File(lp).existsSync() && !kIsWeb) {
-            return CurrentVideoInfo(path: lp, type: CurrentVideoType.local, aspectRatio: aspectRatio);
+            return CurrentVideoInfo(
+                path: lp,
+                type: CurrentVideoType.local,
+                aspectRatio: aspectRatio);
           }
         }
       }
 
-      if (widget.message.videoElem!.snapshotWidth != null && widget.message.videoElem!.snapshotHeight != null) {
+      if (widget.message.videoElem!.snapshotWidth != null &&
+          widget.message.videoElem!.snapshotHeight != null) {
         if (widget.message.videoElem!.snapshotHeight != 0) {
-          aspectRatio = (widget.message.videoElem!.snapshotWidth!) / (widget.message.videoElem!.snapshotHeight!);
+          aspectRatio = (widget.message.videoElem!.snapshotWidth!) /
+              (widget.message.videoElem!.snapshotHeight!);
         }
       }
 
-      if (TencentUtils.checkString(widget.message.videoElem!.videoPath) != null) {
+      if (TencentUtils.checkString(widget.message.videoElem!.videoPath) !=
+          null) {
         // 先查本地发送的视频地址
         if (File(widget.message.videoElem!.videoPath!).existsSync()) {
           console("video: local video path exists");
           return CurrentVideoInfo(
-              path: widget.message.videoElem!.videoPath!, type: CurrentVideoType.local, aspectRatio: aspectRatio);
+              path: widget.message.videoElem!.videoPath!,
+              type: CurrentVideoType.local,
+              aspectRatio: aspectRatio);
         }
-      } else if (TencentUtils.checkString(widget.message.videoElem!.localVideoUrl) != null) {
+      } else if (TencentUtils.checkString(
+              widget.message.videoElem!.localVideoUrl) !=
+          null) {
         // 再查本地下载的视频地址
         if (File(widget.message.videoElem!.localVideoUrl!).existsSync()) {
           console("video: local url exists");
           return CurrentVideoInfo(
-              path: widget.message.videoElem!.localVideoUrl!, type: CurrentVideoType.local, aspectRatio: aspectRatio);
+              path: widget.message.videoElem!.localVideoUrl!,
+              type: CurrentVideoType.local,
+              aspectRatio: aspectRatio);
         }
       } else {
         // 最后再查在线地址(todo 使用 getMessageOnlineUrl 查询)
@@ -159,22 +176,28 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
           }
         }
         if (!kIsWeb) {
-          V2TimValueCallback<V2TimMessageOnlineUrl> urlres = await TencentImSDKPlugin.v2TIMManager
-              .getMessageManager()
-              .getMessageOnlineUrl(msgID: widget.message.msgID ?? "");
+          V2TimValueCallback<V2TimMessageOnlineUrl> urlres =
+              await TencentImSDKPlugin.v2TIMManager
+                  .getMessageManager()
+                  .getMessageOnlineUrl(msgID: widget.message.msgID ?? "");
           if (urlres.data != null) {
             if (urlres.data?.videoElem != null) {
-              if (TencentUtils.checkString(urlres.data?.videoElem?.videoUrl) != null) {
-                console("view video online url ${urlres.data?.videoElem?.videoUrl}");
+              if (TencentUtils.checkString(urlres.data?.videoElem?.videoUrl) !=
+                  null) {
+                console(
+                    "view video online url ${urlres.data?.videoElem?.videoUrl}");
                 return CurrentVideoInfo(
-                    path: urlres.data!.videoElem!.videoUrl!, type: CurrentVideoType.online, aspectRatio: aspectRatio);
+                    path: urlres.data!.videoElem!.videoUrl!,
+                    type: CurrentVideoType.online,
+                    aspectRatio: aspectRatio);
               }
             }
           }
         }
       }
     } else {
-      console("The component received a non-video message parameter. please check");
+      console(
+          "The component received a non-video message parameter. please check");
     }
     console("has no view video source. please check");
     return null;
@@ -184,6 +207,33 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
     print("$_tag, $log");
   }
 
+  /// 为底层 video 控制器添加监听，保障进度不会溢出。
+  void _attachPositionListener() {
+    final controller = _betterPlayerController?.videoPlayerController;
+    controller?.addListener(_clampPositionToDuration);
+  }
+
+  /// 移除进度监听，避免组件销毁后仍触发回调。
+  void _detachPositionListener() {
+    final controller = _betterPlayerController?.videoPlayerController;
+    controller?.removeListener(_clampPositionToDuration);
+  }
+
+  /// 防止播放位置超过时长导致控制条剩余时间倒数为负值。
+  void _clampPositionToDuration() {
+    final controller = _betterPlayerController?.videoPlayerController;
+    final Duration? duration = controller?.value.duration;
+    final Duration? position = controller?.value.position;
+    if (duration == null || duration.inMilliseconds <= 0) {
+      return;
+    }
+    if (position != null && position > duration) {
+      _betterPlayerController?.pause();
+      _betterPlayerController?.seekTo(duration);
+    }
+  }
+
+  /// 构建视频播放区域，额外腾出底部内边距让进度条远离自定义操作按钮。
   @override
   Widget build(BuildContext context) {
     if (widget.message.hasRiskContent == true) {
@@ -200,9 +250,14 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
     }
 
     return AspectRatio(
-      aspectRatio: _betterPlayerController!.videoPlayerController?.value.aspectRatio ?? 9 / 16,
-      child: BetterPlayer(
-        controller: _betterPlayerController!,
+      aspectRatio:
+          _betterPlayerController!.videoPlayerController?.value.aspectRatio ??
+              9 / 16,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: _kControlBottomPadding),
+        child: BetterPlayer(
+          controller: _betterPlayerController!,
+        ),
       ),
     );
   }

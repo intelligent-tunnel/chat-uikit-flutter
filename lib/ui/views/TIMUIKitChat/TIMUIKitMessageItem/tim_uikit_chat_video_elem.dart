@@ -49,6 +49,8 @@ class TIMUIKitVideoElem extends StatefulWidget {
 
 class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
   final MessageService _messageService = serviceLocator<MessageService>();
+  /// 视频消息封面统一圆角半径，保持与图片气泡的视觉一致性。
+  static const double _kMediaBubbleRadius = 12;
   late V2TimVideoElem stateElement = widget.message.videoElem!;
 
   Widget errorDisplay(TUITheme? theme) {
@@ -78,6 +80,8 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
     );
   }
 
+  /// 根据视频元素选择合适的封面资源，并应用统一圆角。
+  /// [theme] 用于提供加载占位的颜色配置；[height] 为原始封面高度，便于占位。
   Widget generateSnapshot(TUITheme theme, int height) {
     if (!PlatformUtils().isWeb) {
       final current = (DateTime.now().millisecondsSinceEpoch / 1000).ceil();
@@ -97,7 +101,7 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
         (stateElement.snapshotPath == null || stateElement.snapshotPath == '')) {
       return Container(
         decoration: BoxDecoration(
-            borderRadius: const BorderRadius.all(Radius.circular(5)),
+            borderRadius: BorderRadius.circular(_kMediaBubbleRadius),
             border: Border.all(
               width: 1,
               color: Colors.black12,
@@ -214,6 +218,8 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
     }
   }
 
+  /// 构建视频消息气泡，负责封面展示、点击跳转和统一圆角裁剪。
+  /// [value] 包含主题等上下文信息。
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final theme = value.theme;
@@ -296,7 +302,7 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
               clearJump: widget.clearJump,
               isFromSelf: widget.message.isSelf ?? true,
               child: ClipRRect(
-                borderRadius: const BorderRadius.all(Radius.circular(5)),
+                borderRadius: BorderRadius.circular(_kMediaBubbleRadius),
                 child: LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
                   double? positionRadio;
                   if ((stateElement.snapshotWidth) != null &&

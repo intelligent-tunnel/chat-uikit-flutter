@@ -21,6 +21,9 @@ class TIMUIKitTongueItem extends TIMUIKitStatelessWidget {
 
   final int previousCount;
 
+  /// 小舌头按钮的圆角半径，确保“回到最新位置”等入口呈现圆角外观
+  static const double _tongueBorderRadius = 18.0;
+
   TIMUIKitTongueItem({
     Key? key,
     required this.onClick,
@@ -57,6 +60,9 @@ class TIMUIKitTongueItem extends TIMUIKitStatelessWidget {
     MessageListTongueType.showPrevious: Icons.arrow_upward_outlined,
   };
 
+  /// 构建消息列表小舌头入口，基于主题渲染回到最新位置等操作按钮。
+  /// 入参：context 为 Flutter 上下文，value 提供主题和多语言配置。
+  /// 返回：圆角手势容器，点击交由外部 onClick 回调处理业务跳转。
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final TUITheme theme = value.theme;
@@ -66,6 +72,7 @@ class TIMUIKitTongueItem extends TIMUIKitStatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: hexToColor("E5E5E5"), width: 1),
+          borderRadius: BorderRadius.circular(_tongueBorderRadius),
           boxShadow: [
             BoxShadow(
                 color: theme.weakDividerColor ?? hexToColor("E6E9EB"),
