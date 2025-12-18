@@ -13,16 +13,22 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 
+import 'tim_uikit_chat_video_controls.dart';
+
 class TIMUIKitVideoPlayer extends StatefulWidget {
   final V2TimMessage message;
   final bool controller;
   final bool isSending;
+
+  /// 聊天视频预览页控制条样式（用于自定义进度条与交互体验）。
+  final TIMUIKitChatVideoControlsStyle controlsStyle;
 
   const TIMUIKitVideoPlayer({
     super.key,
     required this.message,
     required this.controller,
     required this.isSending,
+    this.controlsStyle = const TIMUIKitChatVideoControlsStyle(),
   });
 
   @override
@@ -47,19 +53,17 @@ class CurrentVideoInfo {
 }
 
 class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
+  /// 日志 tag（用于快速定位聊天视频播放页相关日志）。
   final String _tag = "TencentCloudChatMessageVideoPlayer";
 
   /// 预留给关闭/下载按钮的底部空间，避免与视频控制条重叠。
   static const double _kControlBottomPadding = 60;
 
-  /// 默认视频宽高比（竖屏），当消息未带封面尺寸时用于兜底展示。
-  static const double _kDefaultAspectRatio = 9 / 16;
-
-  /// 视频暂停/显示控制层时的全屏遮罩底色。
+  /// 视频控制层的遮罩背景色。
   ///
-  /// - 用途：BetterPlayer 默认会用 `controlBarColor` 作为「中间点击区域」的全屏背景，
-  ///   暂停时会出现一整块偏黑的半透明蒙版；这里将其改为透明以保持画面清爽。
-  /// - 业务约束：仅影响 1v1 聊天的视频预览页（`VideoScreen`），不影响其它视频模块。
+  /// - 用途：Android(Material) 默认会使用 `controlBarColor` 作为「点击区域」的全屏背景，
+  ///   若为黑色会导致显示控制条时整屏发黑。
+  /// - 约束：这里设置为透明，由自定义控制条自行绘制需要的局部背景（如圆角容器底）。
   static const Color _kVideoControlsMaskColor = Colors.transparent;
 
   BetterPlayerController? _betterPlayerController;
@@ -98,8 +102,9 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
           autoPlay: true,
           allowedScreenSleep: false,
           fullScreenByDefault: false,
-          controlsConfiguration: const BetterPlayerControlsConfiguration(
+          controlsConfiguration: BetterPlayerControlsConfiguration(
             controlBarColor: _kVideoControlsMaskColor,
+            playerTheme: BetterPlayerTheme.custom,
             enableFullscreen: false,
             enablePlayPause: true,
             enableProgressBar: true,
@@ -108,6 +113,16 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
             enableMute: false,
             enableOverflowMenu: false,
             enableSkips: false,
+            customControlsBuilder: (
+              BetterPlayerController controller,
+              Function(bool) onPlayerVisibilityChanged,
+            ) {
+              return TIMUIKitChatVideoControls(
+                betterPlayerController: controller,
+                onPlayerVisibilityChanged: onPlayerVisibilityChanged,
+                style: widget.controlsStyle,
+              );
+            },
           ),
         );
 
@@ -187,10 +202,14 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
     return null;
   }
 
-  /// 统一打印日志，便于定位视频资源解析问题。
-  /// [log] 为已拼接好的日志内容。
+  /// 控制台日志输出（仅用于调试）。
+  ///
+  /// - 用途：统一输出带 tag 的日志，便于定位视频播放页相关问题。
+  /// - 入参：[log] 需要输出的日志内容。
+  /// - 返回：无。
+  /// - 约束：使用 `debugPrint`，避免生产环境触发 `avoid_print`。
   void console(String log) {
-    print("$_tag, $log");
+    debugPrint("$_tag, $log");
   }
 
   /// 计算当前视频展示宽高比，优先使用封面宽高，避免播放页布局跳动。
