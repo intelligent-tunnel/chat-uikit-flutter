@@ -1003,6 +1003,10 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
   ///   - [convID] 会话 ID。
   ///   - [inputElement] Web 侧输入元素（可选）。
   ///   - [convType] 会话类型（单聊/群聊）。
+  ///   - [forceJpegCompress] 是否强制将图片重编码为 JPEG 后发送：
+  ///     - 用途：统一“拍摄/相册”图片在各端的宽高与方向信息，
+  ///       避免气泡按错误比例布局出现边缘缝隙。
+  ///     - 约束：为避免破坏动图，gif 格式会忽略该开关，仍按原文件发送。
   /// - 返回：发送结果回调；若被生命周期拦截则返回 code=1 的结果且不会触发 SDK 发送。
   /// - 约束：若 messageWillSend 将 message.status 改为非 SENDING，则视为拦截，不再调用 _sendMessage。
   Future<V2TimValueCallback<V2TimMessage>?> sendImageMessage(
@@ -1010,7 +1014,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       String? imageName,
       required String convID,
       dynamic inputElement,
-      required ConvType convType}) async {
+      required ConvType convType,
+      bool forceJpegCompress = false}) async {
     String? optimizedImagePath;
     if ((PlatformUtils().isAndroid || PlatformUtils().isIOS) &&
         imagePath != null &&
@@ -1018,14 +1023,23 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       try {
         final size = getFileSize(File(imagePath));
         final format = imagePath.split(".").last.toLowerCase();
-        if (size > 20 ||
-            (format != "jpg" && format != "png" && format != "gif")) {
+        // 强制重编码为 JPEG：
+        // - 用途：消除 EXIF 方向/宽高差异，统一拍摄图与相册图的渲染比例，
+        //   避免 iOS 端出现 1px 级边缘缝隙。
+        // - 约束：gif 需要保留动图能力，禁止重编码为 jpeg。
+        final bool canReencodeToJpeg = format != "gif";
+        if (canReencodeToJpeg &&
+            (forceJpegCompress ||
+                size > 20 ||
+                (format != "jpg" && format != "png" && format != "gif"))) {
           final target = await getTempPath();
           final result = await FlutterImageCompress.compressAndGetFile(
             imagePath,
             target,
             format: CompressFormat.jpeg,
             quality: 85,
+            keepExif: false,
+            autoCorrectionAngle: true,
           );
           optimizedImagePath = result?.path;
         }
