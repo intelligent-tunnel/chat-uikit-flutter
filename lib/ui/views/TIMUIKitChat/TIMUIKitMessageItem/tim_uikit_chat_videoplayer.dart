@@ -246,27 +246,74 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
       return null;
     }
 
+    // SDK 记录的视频文件大小（字节），用于校验下载是否完整。
+    final int? expectedVideoSize = elem.videoSize;
+
     if (isSending) {
       final String? sendingPath = TencentUtils.checkString(elem.videoPath);
-      if (sendingPath != null && File(sendingPath).existsSync()) {
+      if (sendingPath != null &&
+          _isValidLocalVideoFile(
+            sendingPath,
+            expectedSize: expectedVideoSize,
+          )) {
         console("view sending message video path");
         return sendingPath;
       }
     }
 
     final String? videoPath = TencentUtils.checkString(elem.videoPath);
-    if (videoPath != null && File(videoPath).existsSync()) {
+    if (videoPath != null &&
+        _isValidLocalVideoFile(
+          videoPath,
+          expectedSize: expectedVideoSize,
+        )) {
       console("video: local video path exists");
       return videoPath;
     }
 
     final String? localVideoUrl = TencentUtils.checkString(elem.localVideoUrl);
-    if (localVideoUrl != null && File(localVideoUrl).existsSync()) {
+    if (localVideoUrl != null &&
+        _isValidLocalVideoFile(
+          localVideoUrl,
+          expectedSize: expectedVideoSize,
+        )) {
       console("video: local url exists");
       return localVideoUrl;
     }
 
     return null;
+  }
+
+  /// 校验本地视频文件是否可播放，过滤掉未下载完成或损坏的缓存。
+  ///
+  /// - 用途：避免因使用半成品缓存导致播放器卡死，必要时可回退到在线地址。
+  /// - 入参：
+  ///   - [path] 本地文件路径。
+  ///   - [expectedSize] SDK 提供的视频文件大小（字节），为空则仅校验存在与非空。
+  /// - 返回：文件存在且大小满足要求返回 true，否则返回 false。
+  /// - 业务约束：读取文件大小时使用 try-catch 捕获异常，防止权限问题导致崩溃。
+  bool _isValidLocalVideoFile(String path, {int? expectedSize}) {
+    try {
+      final File file = File(path);
+      if (!file.existsSync()) {
+        return false;
+      }
+      final int actualSize = file.lengthSync();
+      if (actualSize <= 0) {
+        console("local video size is zero, fallback to online. path=$path");
+        return false;
+      }
+      if (expectedSize != null && expectedSize > 0 && actualSize < expectedSize) {
+        console(
+          "local video size mismatch, expect=$expectedSize, actual=$actualSize, path=$path",
+        );
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console("local video check error: $e, path=$path");
+      return false;
+    }
   }
 
   /// 从消息体中直接解析在线播放地址（无需额外请求）。
