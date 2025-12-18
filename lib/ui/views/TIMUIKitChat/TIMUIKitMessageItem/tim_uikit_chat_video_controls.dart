@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:better_player_plus/better_player_plus.dart';
 import 'package:flutter/material.dart';
 
-/// 聊天视频预览页控制条样式配置，集中管理播放按钮/时间/进度条等视觉参数，默认值模拟常见视频 App
-/// 体验，仅用于聊天视频预览页的 BetterPlayer 自定义控制条。
+/// 聊天视频预览页控制条样式配置，集中管理播放按钮/时间/进度条等视觉参数，
+/// 默认值模拟常见视频 App 体验，仅用于聊天视频预览页的 BetterPlayer 自定义控制条。
 @immutable
 class TIMUIKitChatVideoControlsStyle {
   /// 播放/暂停图标颜色。
@@ -83,8 +83,8 @@ class TIMUIKitChatVideoControlsStyle {
 }
 
 /// 1v1 聊天视频预览页的 BetterPlayer 自定义控制条（覆盖在视频上的控制层）。
-/// 替换默认遮罩并承载播放按钮/时间/进度条，需传入 BetterPlayer 控制器与显隐回调，可配置样式。
-/// 仅用于聊天视频预览页的控制层，不负责关闭/下载按钮。
+/// 替换默认遮罩并承载播放按钮/时间/进度条，需传入 BetterPlayer 控制器与显隐回调。
+/// 可配置样式，仅用于聊天视频预览页的控制层，不负责关闭/下载按钮。
 class TIMUIKitChatVideoControls extends StatefulWidget {
   const TIMUIKitChatVideoControls({
     super.key,
@@ -110,19 +110,16 @@ class TIMUIKitChatVideoControls extends StatefulWidget {
 class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
   /// 底层视频控制器监听器（仅依赖 ValueNotifier 能力，避免引用第三方包的 src 实现）。
   ValueNotifier<VideoPlayerValue>? _videoPlayerController;
-
   /// 自动隐藏控制条的计时器（仅在播放中且控制条可见时启动）。
   Timer? _autoHideTimer;
-
   /// 当前控制条是否可见。
   bool _isControlsVisible = false;
-
-  /// 拖动进度条前是否处于播放中，用于拖动结束后恢复播放状态。
+  /// 当前是否正在拖动进度条，用于区分拖动中的状态同步与自动恢复。
+  bool _isDragging = false;
+  /// 拖动进度条前的播放状态标记，拖动中手动暂停会重置以避免结束后自动恢复播放。
   bool _wasPlayingBeforeDrag = false;
-
   /// 拖动进度条时的临时毫秒值；为空表示未在拖动中，使用视频真实进度。
   double? _draggingPositionMs;
-
   /// 允许重播的进度误差毫秒数（用于兜底浮点误差导致的“未归零”情况）。
   static const int _kReplayThresholdMs = 500;
 
@@ -154,13 +151,11 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
         widget.betterPlayerController.videoPlayerController;
     _videoPlayerController?.addListener(_onVideoValueChanged);
   }
-
   /// 解绑底层 VideoPlayerController 的监听，避免组件销毁后继续回调导致异常。
   void _unbindVideoController() {
     _videoPlayerController?.removeListener(_onVideoValueChanged);
     _videoPlayerController = null;
   }
-
   /// 底层视频状态变化回调：刷新 UI，并按需启动/取消自动隐藏。
   void _onVideoValueChanged() {
     if (!mounted) {
@@ -169,7 +164,6 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
     _syncAutoHideState();
     setState(() {});
   }
-
   /// 同步控制条自动隐藏逻辑：仅在播放中且控制条可见时启动倒计时。
   void _syncAutoHideState() {
     if (!_isControlsVisible) {
@@ -190,13 +184,11 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
       _setControlsVisible(false);
     });
   }
-
   /// 重启自动隐藏计时器（会先取消旧计时器）。
   void _restartAutoHideTimer() {
     _cancelAutoHideTimer();
     _syncAutoHideState();
   }
-
   /// 取消自动隐藏计时器。
   void _cancelAutoHideTimer() {
     _autoHideTimer?.cancel();
@@ -222,12 +214,10 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
     }
     setState(() {});
   }
-
   /// 点击视频区域：切换控制条显隐。
   void _handleTap() {
     _setControlsVisible(!_isControlsVisible);
   }
-
   /// 双击视频区域：切换播放/暂停，并确保控制条可见以便用户感知状态变化。
   void _handleDoubleTap() {
     unawaited(_togglePlayPause());
@@ -236,6 +226,7 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
 
   /// 切换视频播放/暂停状态。
   /// - 若当前进度已到末尾，再次点击播放时会先跳回起点确保能重播。
+  /// - 拖动进度时暂停会同步清理拖动标记，避免控件停留在末尾。
   Future<void> _togglePlayPause() async {
     try {
       final VideoPlayerValue? value = _videoPlayerController?.value;
@@ -243,6 +234,13 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
       if (isPlaying) {
         await widget.betterPlayerController.pause();
         _cancelAutoHideTimer();
+        if (_isDragging) {
+          setState(() {
+            _draggingPositionMs = null;
+            _isDragging = false;
+          });
+          _wasPlayingBeforeDrag = false;
+        }
       } else {
         final Duration? duration = value?.duration;
         final Duration? position = value?.position;
@@ -257,13 +255,16 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
         await widget.betterPlayerController.play();
         _syncAutoHideState();
       }
+      _wasPlayingBeforeDrag =
+          _videoPlayerController?.value.isPlaying ?? _wasPlayingBeforeDrag;
     } catch (_) {
       // 控制器可能尚未初始化完成；此处静默失败，避免影响页面交互。
     }
   }
 
-  /// 拖动进度条开始：记录播放状态并暂停，避免拖动时画面继续前进。
+  /// 拖动进度条开始：记录播放状态、标记拖拽中并暂停，避免拖动时画面继续前进。
   void _onSeekStart() {
+    _isDragging = true;
     _wasPlayingBeforeDrag = _videoPlayerController?.value.isPlaying ?? false;
     _cancelAutoHideTimer();
     if (!_wasPlayingBeforeDrag) {
@@ -279,6 +280,7 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
   /// 拖动进度条更新：seek 到目标位置并更新 UI 临时进度。
   /// [positionMs] 目标位置（毫秒）。
   void _onSeekChanged(double positionMs) {
+    _isDragging = true;
     _draggingPositionMs = positionMs;
     setState(() {});
     try {
@@ -289,11 +291,13 @@ class _TIMUIKitChatVideoControlsState extends State<TIMUIKitChatVideoControls> {
     }
   }
 
-  /// 拖动进度条结束：清空临时进度，并在需要时恢复播放与自动隐藏。
+  /// 拖动进度条结束：清空临时进度与拖拽标记，并在需要时恢复播放与自动隐藏。
   /// [positionMs] 目标位置（毫秒）。
   void _onSeekEnd(double positionMs) {
-    _draggingPositionMs = null;
-    setState(() {});
+    setState(() {
+      _draggingPositionMs = null;
+      _isDragging = false;
+    });
 
     if (_wasPlayingBeforeDrag) {
       try {
