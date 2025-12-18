@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:open_file/open_file.dart';
@@ -218,6 +219,27 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
     }
   }
 
+  /// 构建视频播放页面路由，iOS 使用 CupertinoPageRoute 以开启系统侧滑返回，其他端保持透明层效果。
+  /// [heroTag] 当前视频 Hero 标识；[element] 对应的视频元素；返回值为可直接 push 的路由。
+  Route<dynamic> _buildVideoRoute(String heroTag, V2TimVideoElem element) {
+    // 预先构建视频播放页，避免路由分支内重复创建。
+    final videoScreen = VideoScreen(
+      message: widget.message,
+      heroTag: heroTag,
+      videoElement: element,
+    );
+    if (PlatformUtils().isIOS) {
+      return CupertinoPageRoute(
+        builder: (_) => videoScreen,
+        fullscreenDialog: false,
+      );
+    }
+    return PageRouteBuilder(
+      opaque: false,
+      pageBuilder: (_, __, ___) => videoScreen,
+    );
+  }
+
   /// 构建视频消息气泡，负责封面展示、点击跳转和统一圆角裁剪。
   /// [value] 包含主题等上下文信息。
   @override
@@ -280,16 +302,7 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem> {
             }
           }
         } else {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              opaque: false, // set to false
-              pageBuilder: (_, __, ___) => VideoScreen(
-                message: widget.message,
-                heroTag: heroTag,
-                videoElement: stateElement,
-              ),
-            ),
-          );
+          Navigator.of(context).push(_buildVideoRoute(heroTag, stateElement));
         }
       },
       child: Hero(

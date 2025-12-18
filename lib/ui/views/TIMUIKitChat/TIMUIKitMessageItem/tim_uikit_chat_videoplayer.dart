@@ -109,6 +109,9 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
           autoPlay: true,
           allowedScreenSleep: false,
           fullScreenByDefault: false,
+          placeholder: _buildVideoPlaceholder(),
+          showPlaceholderUntilPlay: false,
+          placeholderOnTop: true,
           controlsConfiguration: BetterPlayerControlsConfiguration(
             controlBarColor: _kVideoControlsMaskColor,
             playerTheme: BetterPlayerTheme.custom,
@@ -392,20 +395,84 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
       );
     }
 
-    if (_betterPlayerController == null) {
-      return Container();
-    }
-
+    final double renderAspectRatio = _resolveRenderAspectRatio();
+    final Widget content = _betterPlayerController == null
+        ? _buildVideoPlaceholder()
+        : BetterPlayer(
+            controller: _betterPlayerController!,
+          );
     return AspectRatio(
-      aspectRatio:
-          _betterPlayerController!.videoPlayerController?.value.aspectRatio ??
-              _kDefaultAspectRatio,
+      aspectRatio: renderAspectRatio,
       child: Padding(
         padding: const EdgeInsets.only(bottom: _kControlBottomPadding),
-        child: BetterPlayer(
-          controller: _betterPlayerController!,
+        child: content,
+      ),
+    );
+  }
+
+  /// 计算用于渲染的宽高比，优先播放器实际比值，其次使用封面兜底比例。
+  ///
+  /// - 用途：播放器初始化或缓冲时仍保证布局比例稳定，避免跳动或压缩。
+  /// - 返回：当前视频应使用的宽高比；当无法获取视频尺寸时返回默认比例。
+  double _resolveRenderAspectRatio() {
+    final double? controllerRatio =
+        _betterPlayerController?.videoPlayerController?.value.aspectRatio;
+    if (controllerRatio != null && controllerRatio > 0) {
+      return controllerRatio;
+    }
+    return _calculateVideoAspectRatio();
+  }
+
+  /// 构建视频加载占位图，优先使用腾讯 IM 提供的封面（snapshot）。
+  ///
+  /// - 用途：网络视频初始化或缓冲时避免黑屏，提升首屏体验。
+  /// - 返回：封面装饰的容器，若无封面则返回纯黑背景。
+  /// - 业务约束：本地封面优先于网络封面，Web 环境跳过本地文件访问。
+  Widget _buildVideoPlaceholder() {
+    final ImageProvider? coverProvider = _resolveVideoCoverImageProvider();
+    if (coverProvider == null) {
+      return Container(color: Colors.black);
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        image: DecorationImage(
+          image: coverProvider,
+          fit: BoxFit.contain,
         ),
       ),
     );
+  }
+
+  /// 解析视频封面图片提供者，覆盖优先级：本地 snapshot > 下载缓存 snapshot > 在线 snapshotUrl。
+  ///
+  /// - 用途：为占位图和播放器 placeholder 提供一致的封面资源。
+  /// - 返回：可用的 `ImageProvider`，若无法找到则返回 null。
+  /// - 业务约束：本地文件需存在且非 Web 环境才可读取；网络封面为空则放弃。
+  ImageProvider? _resolveVideoCoverImageProvider() {
+    final elem = widget.message.videoElem;
+    if (elem == null) {
+      return null;
+    }
+
+    if (!kIsWeb) {
+      final String? localSnapshotUrl =
+          TencentUtils.checkString(elem.localSnapshotUrl);
+      if (localSnapshotUrl != null && File(localSnapshotUrl).existsSync()) {
+        return FileImage(File(localSnapshotUrl));
+      }
+
+      final String? snapshotPath = TencentUtils.checkString(elem.snapshotPath);
+      if (snapshotPath != null && File(snapshotPath).existsSync()) {
+        return FileImage(File(snapshotPath));
+      }
+    }
+
+    final String? snapshotUrl = TencentUtils.checkString(elem.snapshotUrl);
+    if (snapshotUrl != null) {
+      return NetworkImage(snapshotUrl);
+    }
+
+    return null;
   }
 }
