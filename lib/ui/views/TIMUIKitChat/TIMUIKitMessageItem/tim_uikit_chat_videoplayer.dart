@@ -52,6 +52,9 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
   /// 预留给关闭/下载按钮的底部空间，避免与视频控制条重叠。
   static const double _kControlBottomPadding = 60;
 
+  /// 默认视频宽高比（竖屏），当消息未带封面尺寸时用于兜底展示。
+  static const double _kDefaultAspectRatio = 9 / 16;
+
   /// 视频暂停/显示控制层时的全屏遮罩底色。
   ///
   /// - 用途：BetterPlayer 默认会用 `controlBarColor` 作为「中间点击区域」的全屏背景，
@@ -130,94 +133,152 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
     super.dispose();
   }
 
+  /// 从消息中解析可播放的视频资源信息。
+  ///
+  /// - 用途：为 `BetterPlayerController` 提供正确的数据源（本地文件 / 在线 URL）。
+  /// - 返回：可播放时返回 `CurrentVideoInfo`，否则返回 null。
+  /// - 业务约束：iOS 历史自发视频可能携带无效 `videoPath`，文件不存在时需回退到在线地址。
   Future<CurrentVideoInfo?> getMessageInfo() async {
-    if (widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_VIDEO) {
-      double aspectRatio = (9 / 16);
-
-      if (widget.isSending) {
-        var lp = widget.message.videoElem!.videoPath ?? "";
-        if (lp.isNotEmpty) {
-          console("view sending message video path");
-          if (File(lp).existsSync() && !kIsWeb) {
-            return CurrentVideoInfo(
-                path: lp,
-                type: CurrentVideoType.local,
-                aspectRatio: aspectRatio);
-          }
-        }
-      }
-
-      if (widget.message.videoElem!.snapshotWidth != null &&
-          widget.message.videoElem!.snapshotHeight != null) {
-        if (widget.message.videoElem!.snapshotHeight != 0) {
-          aspectRatio = (widget.message.videoElem!.snapshotWidth!) /
-              (widget.message.videoElem!.snapshotHeight!);
-        }
-      }
-
-      if (TencentUtils.checkString(widget.message.videoElem!.videoPath) !=
-          null) {
-        // 先查本地发送的视频地址
-        if (File(widget.message.videoElem!.videoPath!).existsSync()) {
-          console("video: local video path exists");
-          return CurrentVideoInfo(
-              path: widget.message.videoElem!.videoPath!,
-              type: CurrentVideoType.local,
-              aspectRatio: aspectRatio);
-        }
-      } else if (TencentUtils.checkString(
-              widget.message.videoElem!.localVideoUrl) !=
-          null) {
-        // 再查本地下载的视频地址
-        if (File(widget.message.videoElem!.localVideoUrl!).existsSync()) {
-          console("video: local url exists");
-          return CurrentVideoInfo(
-              path: widget.message.videoElem!.localVideoUrl!,
-              type: CurrentVideoType.local,
-              aspectRatio: aspectRatio);
-        }
-      } else {
-        // 最后再查在线地址(todo 使用 getMessageOnlineUrl 查询)
-        if (widget.message.videoElem != null) {
-          if (widget.message.videoElem!.snapshotUrl != null) {
-            console("video: online url ${widget.message.videoElem!.videoUrl}");
-            return CurrentVideoInfo(
-              path: widget.message.videoElem!.videoUrl!,
-              type: CurrentVideoType.online,
-              aspectRatio: aspectRatio,
-            );
-          }
-        }
-        if (!kIsWeb) {
-          V2TimValueCallback<V2TimMessageOnlineUrl> urlres =
-              await TencentImSDKPlugin.v2TIMManager
-                  .getMessageManager()
-                  .getMessageOnlineUrl(msgID: widget.message.msgID ?? "");
-          if (urlres.data != null) {
-            if (urlres.data?.videoElem != null) {
-              if (TencentUtils.checkString(urlres.data?.videoElem?.videoUrl) !=
-                  null) {
-                console(
-                    "view video online url ${urlres.data?.videoElem?.videoUrl}");
-                return CurrentVideoInfo(
-                    path: urlres.data!.videoElem!.videoUrl!,
-                    type: CurrentVideoType.online,
-                    aspectRatio: aspectRatio);
-              }
-            }
-          }
-        }
-      }
-    } else {
+    if (widget.message.elemType != MessageElemType.V2TIM_ELEM_TYPE_VIDEO) {
       console(
           "The component received a non-video message parameter. please check");
+      return null;
     }
-    console("has no view video source. please check");
+
+    final double aspectRatio = _calculateVideoAspectRatio();
+
+    final String? localPath = _resolvePlayableLocalVideoPath(
+      isSending: widget.isSending,
+    );
+    if (localPath != null) {
+      return CurrentVideoInfo(
+        path: localPath,
+        type: CurrentVideoType.local,
+        aspectRatio: aspectRatio,
+      );
+    }
+
+    final String? messageOnlineUrl = _resolveMessageOnlineVideoUrl();
+    if (messageOnlineUrl != null) {
+      return CurrentVideoInfo(
+        path: messageOnlineUrl,
+        type: CurrentVideoType.online,
+        aspectRatio: aspectRatio,
+      );
+    }
+
+    final String? fetchedOnlineUrl = await _fetchOnlineVideoUrlByMsgId(
+      widget.message.msgID,
+    );
+    if (fetchedOnlineUrl != null) {
+      return CurrentVideoInfo(
+        path: fetchedOnlineUrl,
+        type: CurrentVideoType.online,
+        aspectRatio: aspectRatio,
+      );
+    }
+
+    final elem = widget.message.videoElem;
+    console(
+      "has no view video source. msgID=${widget.message.msgID}, "
+      "videoPath=${elem?.videoPath}, localVideoUrl=${elem?.localVideoUrl}, "
+      "videoUrl=${elem?.videoUrl}",
+    );
     return null;
   }
 
-  console(String log) {
+  /// 统一打印日志，便于定位视频资源解析问题。
+  /// [log] 为已拼接好的日志内容。
+  void console(String log) {
     print("$_tag, $log");
+  }
+
+  /// 计算当前视频展示宽高比，优先使用封面宽高，避免播放页布局跳动。
+  double _calculateVideoAspectRatio() {
+    final elem = widget.message.videoElem;
+    final int? snapshotWidth = elem?.snapshotWidth;
+    final int? snapshotHeight = elem?.snapshotHeight;
+    if (snapshotWidth == null || snapshotHeight == null) {
+      return _kDefaultAspectRatio;
+    }
+    if (snapshotHeight == 0) {
+      return _kDefaultAspectRatio;
+    }
+    return snapshotWidth / snapshotHeight;
+  }
+
+  /// 解析并返回「当前确实存在」的本地视频文件路径。
+  /// 优先级：发送中本地路径 > videoPath（SDK/发送遗留）> localVideoUrl（下载缓存）。
+  /// [isSending] 表示是否处于发送中状态，发送中优先用原始视频路径播放。
+  String? _resolvePlayableLocalVideoPath({required bool isSending}) {
+    if (kIsWeb) {
+      return null;
+    }
+
+    final elem = widget.message.videoElem;
+    if (elem == null) {
+      return null;
+    }
+
+    if (isSending) {
+      final String? sendingPath = TencentUtils.checkString(elem.videoPath);
+      if (sendingPath != null && File(sendingPath).existsSync()) {
+        console("view sending message video path");
+        return sendingPath;
+      }
+    }
+
+    final String? videoPath = TencentUtils.checkString(elem.videoPath);
+    if (videoPath != null && File(videoPath).existsSync()) {
+      console("video: local video path exists");
+      return videoPath;
+    }
+
+    final String? localVideoUrl = TencentUtils.checkString(elem.localVideoUrl);
+    if (localVideoUrl != null && File(localVideoUrl).existsSync()) {
+      console("video: local url exists");
+      return localVideoUrl;
+    }
+
+    return null;
+  }
+
+  /// 从消息体中直接解析在线播放地址（无需额外请求）。
+  /// 注意：仅当 videoUrl 非空时返回；否则交给在线拉取兜底处理。
+  String? _resolveMessageOnlineVideoUrl() {
+    final elem = widget.message.videoElem;
+    final String? videoUrl = TencentUtils.checkString(elem?.videoUrl);
+    if (videoUrl == null) {
+      return null;
+    }
+    console("video: online url $videoUrl");
+    return videoUrl;
+  }
+
+  /// 通过 SDK 根据 [msgID] 拉取视频在线地址，适配历史消息未携带 videoUrl 的情况。
+  /// 返回可用的在线 URL；若 msgID 为空/拉取失败则返回 null。
+  Future<String?> _fetchOnlineVideoUrlByMsgId(String? msgID) async {
+    final String? safeMsgID = TencentUtils.checkString(msgID);
+    if (kIsWeb || safeMsgID == null) {
+      return null;
+    }
+
+    try {
+      final V2TimValueCallback<V2TimMessageOnlineUrl> urlRes =
+          await TencentImSDKPlugin.v2TIMManager
+              .getMessageManager()
+              .getMessageOnlineUrl(msgID: safeMsgID);
+      final String? onlineUrl =
+          TencentUtils.checkString(urlRes.data?.videoElem?.videoUrl);
+      if (onlineUrl == null) {
+        return null;
+      }
+      console("view video online url $onlineUrl");
+      return onlineUrl;
+    } catch (e) {
+      console("getMessageOnlineUrl error: $e");
+      return null;
+    }
   }
 
   /// 为底层 video 控制器添加监听，保障进度不会溢出。
@@ -265,7 +326,7 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
     return AspectRatio(
       aspectRatio:
           _betterPlayerController!.videoPlayerController?.value.aspectRatio ??
-              9 / 16,
+              _kDefaultAspectRatio,
       child: Padding(
         padding: const EdgeInsets.only(bottom: _kControlBottomPadding),
         child: BetterPlayer(
