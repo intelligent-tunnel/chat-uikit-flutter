@@ -155,6 +155,9 @@ class TIMUIKitTextFieldLayoutNarrow extends StatefulWidget {
 class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFieldLayoutNarrow> {
   final TUISettingModel settingModel = serviceLocator<TUISettingModel>();
   final ScrollController _textScrollController = ScrollController();
+  /// 输入框状态 Key，用于表情插入后滚动光标到可见区域。
+  final GlobalKey<ExtendedTextFieldState> _textFieldKey =
+      GlobalKey<ExtendedTextFieldState>();
   VoidCallback? _controllerListener;
 
   bool showMore = false;
@@ -281,11 +284,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
               deleteText: () {
                 widget.backSpaceText();
                 setSendButton();
+                _ensureCursorVisible();
               },
               addText: (int unicode) {
                 final newText = String.fromCharCode(unicode);
                 widget.addStickerToText(newText);
                 setSendButton();
+                _ensureCursorVisible();
                 // handleSetDraftText();
               },
               addCustomEmojiText: ((String singleEmojiName) {
@@ -298,6 +303,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                 String newText = '[$compatibleEmojiName]';
                 widget.addStickerToText(newText);
                 setSendButton();
+                _ensureCursorVisible();
               }),
               defaultCustomEmojiStickerList: widget.isUseDefaultEmoji ? TUIKitStickerConstData.emojiList : [])
           : Padding(
@@ -312,11 +318,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                   deleteText: () {
                     widget.backSpaceText();
                     setSendButton();
+                    _ensureCursorVisible();
                   },
                   addText: (int unicode) {
                     final newText = String.fromCharCode(unicode);
                     widget.addStickerToText(newText);
                     setSendButton();
+                    _ensureCursorVisible();
                     // handleSetDraftText();
                   },
                   addCustomEmojiText: ((String singleEmojiName) {
@@ -329,6 +337,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                     String newText = '[$compatibleEmojiName]';
                     widget.addStickerToText(newText);
                     setSendButton();
+                    _ensureCursorVisible();
                   }),
                   customStickerPackageList: widget.stickerPackageList,
                   lightPrimaryColor: theme.lightPrimaryColor),
@@ -467,6 +476,31 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
           showInputScrollbar = needScrollbar;
         });
       }
+    });
+  }
+
+  /// 触发表情插入后的光标滚动，确保输入区域可见。
+  /// 入参：无。
+  /// 返回：void。
+  /// 业务约束：需等待下一帧布局完成，selection 必须有效且不越界。
+  void _ensureCursorVisible() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final ExtendedTextFieldState? textFieldState = _textFieldKey.currentState;
+      if (textFieldState == null) {
+        return;
+      }
+      final TextSelection selection = widget.textEditingController.selection;
+      if (!selection.isValid) {
+        return;
+      }
+      final int offset = selection.extentOffset;
+      if (offset < 0 || offset > widget.textEditingController.text.length) {
+        return;
+      }
+      textFieldState.bringIntoView(TextPosition(offset: offset));
     });
   }
 
@@ -709,6 +743,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                           padding: const EdgeInsets.only(top: 10, bottom: 4),
                           child: KeyboardVisibility(
                               child: ExtendedTextField(
+                                  key: _textFieldKey,
                                   maxLines: 5,
                                   minLines: 1,
                                   focusNode: widget.focusNode,

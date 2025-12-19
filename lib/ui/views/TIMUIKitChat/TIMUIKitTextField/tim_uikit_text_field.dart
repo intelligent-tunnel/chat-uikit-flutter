@@ -222,6 +222,11 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
     return emojiRegex().hasMatch(input);
   }
 
+  /// 删除输入框光标前的字符或表情并同步光标位置。
+  /// 入参：无。
+  /// 返回：void。
+  /// 业务约束：优先使用 currentCursor 作为删除位置，空值时按文本末尾处理，
+  /// 删除后必须更新 selection，保证表情面板下也能与光标位置一致。
   void _deleteStickerFromText() {
     String originalText = textEditingController.text;
 
@@ -247,15 +252,24 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
           removeLength = 2;
         }
 
-        text = originalText.substring(0, cursorPosition - removeLength) + originalText.substring(cursorPosition);
-        currentCursor = (currentCursor ?? removeLength) - removeLength;
+        text = originalText.substring(0, cursorPosition - removeLength) +
+            originalText.substring(cursorPosition);
+        currentCursor = cursorPosition - removeLength;
       }
 
-      textEditingController.text = text;
-
+      int nextCursor = currentCursor ?? text.length;
+      if (nextCursor < 0) {
+        nextCursor = 0;
+      } else if (nextCursor > text.length) {
+        nextCursor = text.length;
+      }
+      textEditingController.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: nextCursor),
+        composing: TextRange.empty,
+      );
+      currentCursor = nextCursor;
       if (TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop) {
-        textEditingController.selection =
-            TextSelection.fromPosition(TextPosition(offset: currentCursor ?? textEditingController.text.length));
         focusNode.requestFocus();
       }
     }
@@ -273,21 +287,30 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
     }
   }
 
+  /// 在当前光标处插入表情或贴纸文本并同步光标位置。
+  /// 入参：[sticker] 需要插入的表情/贴纸文本（如 [smile] 或 Unicode）。
+  /// 返回：void。
+  /// 业务约束：currentCursor 无效时默认追加到末尾，插入后必须更新 selection，
+  /// 保证表情面板下输入滚动与光标一致。
   void _addStickerToText(String sticker) {
-    final currentText = textEditingController.text;
-    if (currentCursor != null && currentCursor! > -1 && currentCursor! < currentText.length + 1) {
-      final firstString = currentText.substring(0, currentCursor);
-      final secondString = currentText.substring(currentCursor!);
-      currentCursor = currentCursor! + sticker.length;
-      textEditingController.text = "$firstString$sticker$secondString";
-    } else {
-      currentCursor = null;
-      textEditingController.text = "$currentText$sticker";
+    final String currentText = textEditingController.text;
+    int insertCursor = currentText.length;
+    if (currentCursor != null &&
+        currentCursor! >= 0 &&
+        currentCursor! <= currentText.length) {
+      insertCursor = currentCursor!;
     }
-
+    final String firstString = currentText.substring(0, insertCursor);
+    final String secondString = currentText.substring(insertCursor);
+    final String nextText = "$firstString$sticker$secondString";
+    final int nextCursor = insertCursor + sticker.length;
+    textEditingController.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextCursor),
+      composing: TextRange.empty,
+    );
+    currentCursor = nextCursor;
     if (TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop) {
-      textEditingController.selection =
-          TextSelection.fromPosition(TextPosition(offset: currentCursor ?? textEditingController.text.length));
       focusNode.requestFocus();
     }
   }
