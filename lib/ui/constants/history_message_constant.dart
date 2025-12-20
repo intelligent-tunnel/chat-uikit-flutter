@@ -29,4 +29,7 @@ class HistoryMessageDartConstant {
 
   // 视频、音频已读状态
   static const int read = 1;
+
+  /// 图片消息本地自定义字段：宽高比，用于首帧稳定布局。
+  static const String imgAspectRatioKey = 'imgAspectRatio';
 }

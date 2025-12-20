@@ -37,7 +37,9 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/message.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/permission.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
-import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/TIMUIKitMessageReaction/tim_uikit_message_reaction_wrapper.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/'
+    'TIMUIKitMessageItem/TIMUIKitMessageReaction/'
+    'tim_uikit_message_reaction_wrapper.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/image_screen.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/wide_popup.dart';
 import 'package:transparent_image/transparent_image.dart';
@@ -362,6 +364,32 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
     return await completer.future;
   }
 
+  /// 从消息本地自定义数据中解析图片宽高比。
+  /// 返回：宽高比，解析失败或不存在时返回 null。
+  /// 业务约束：仅接受大于 0 的数值，避免异常比例导致布局错乱。
+  double? _resolveCustomAspectRatio() {
+    final String? raw = widget.message.localCustomData;
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    try {
+      final Map<String, dynamic> map =
+          json.decode(raw) as Map<String, dynamic>;
+      final dynamic value = map[HistoryMessageDartConstant.imgAspectRatioKey];
+      if (value is num) {
+        final double ratio = value.toDouble();
+        return ratio > 0 ? ratio : null;
+      }
+      if (value is String) {
+        final double? ratio = double.tryParse(value);
+        if (ratio != null && ratio > 0) {
+          return ratio;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   void onClickImage({
     required bool isNetworkImage,
     dynamic heroTag,
@@ -421,24 +449,37 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
     }
   }
 
-  Widget _renderAllImage(
-      {dynamic heroTag,
-      double? positionRadio,
-      required TUITheme theme,
-      bool isNetworkImage = false,
-      String? webPath,
-      V2TimImage? originalImg,
-      V2TimImage? smallImg,
-      String? smallLocalPath,
-      String? originLocalPath}) {
+  /// 构建图片消息主体，统一占位比例并居中展示，避免不同机型出现裁切感。
+  /// [heroTag] 用于 Hero 动画的唯一标识；[positionRadio] 图片宽高比；
+  /// [theme] 当前主题；[isNetworkImage] 是否网络图片；
+  /// [webPath] Web 端图片路径；[originalImg] 原图信息；[smallImg] 缩略图信息；
+  /// [smallLocalPath] 缩略图本地路径；[originLocalPath] 原图本地路径。
+  /// 返回：可点击预览的图片消息组件。
+  /// 业务约束：positionRadio 必须大于 0，避免布局异常。
+  Widget _renderAllImage({
+    dynamic heroTag,
+    required double positionRadio,
+    required TUITheme theme,
+    bool isNetworkImage = false,
+    String? webPath,
+    V2TimImage? originalImg,
+    V2TimImage? smallImg,
+    String? smallLocalPath,
+    String? originLocalPath,
+  }) {
+    // 构建实际图片组件，统一居中与 contain 规则，避免左右不对称空白。
     Widget getImageWidget() {
       if (isNetworkImage) {
         return Hero(
             tag: heroTag,
             child: PlatformUtils().isWeb
-                ? Image.network(webPath ?? smallImg?.url ?? originalImg!.url!, fit: BoxFit.contain)
+                ? Image.network(
+                    webPath ?? smallImg?.url ?? originalImg!.url!,
+                    alignment: Alignment.center,
+                    fit: BoxFit.contain,
+                  )
                 : CachedNetworkImage(
-                    alignment: Alignment.topCenter,
+                    alignment: Alignment.center,
                     imageUrl: webPath ?? smallImg?.url ?? originalImg!.url!,
                     errorWidget: (context, error, stackTrace) => errorPage(theme),
                     fit: BoxFit.contain,
@@ -447,11 +488,23 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
                     fadeInDuration: const Duration(milliseconds: 0),
                   ));
       } else {
-        final imgPath = (TencentUtils.checkString(smallLocalPath) != null ? smallLocalPath : originLocalPath)!;
-        return Hero(tag: heroTag, child: Image.file(File(imgPath), fit: BoxFit.contain));
+        // 优先使用本地小图，缺失时回退原图，确保发送中也能预览。
+        final String imgPath =
+            (TencentUtils.checkString(smallLocalPath) != null
+                ? smallLocalPath
+                : originLocalPath)!;
+        return Hero(
+          tag: heroTag,
+          child: Image.file(
+            File(imgPath),
+            alignment: Alignment.center,
+            fit: BoxFit.contain,
+          ),
+        );
       }
     }
 
+    // 实际图片宽高比预留位，未来可动态计算后覆盖 positionRadio。
     double? currentPositionRadio;
     // File imgF = File((TencentUtils.checkString(originLocalPath) != null
     //         ? originLocalPath
@@ -472,23 +525,29 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
     //   }
     // }));
 
+    // 统一构建点击预览与占位布局，避免图片偏移导致的右侧裁切错觉。
+    final Widget imageWidget = getImageWidget();
     return GestureDetector(
       onTap: () => onClickImage(
-          theme: theme,
-          heroTag: heroTag,
-          isNetworkImage: isNetworkImage,
-          imgUrl: webPath ?? smallImg?.url ?? originalImg?.url ?? "",
-          imgPath: (TencentUtils.checkString(originLocalPath) != null ? originLocalPath : smallLocalPath) ?? ""),
+        theme: theme,
+        heroTag: heroTag,
+        isNetworkImage: isNetworkImage,
+        imgUrl: webPath ?? smallImg?.url ?? originalImg?.url ?? "",
+        imgPath: (TencentUtils.checkString(originLocalPath) != null
+                ? originLocalPath
+                : smallLocalPath) ??
+            "",
+      ),
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          if (positionRadio != null)
-            AspectRatio(
-              aspectRatio: (currentPositionRadio ?? positionRadio)!,
-              child: Container(
-                decoration: const BoxDecoration(color: Colors.transparent),
-              ),
-            ),
-          getImageWidget(),
+          AspectRatio(
+            aspectRatio: currentPositionRadio ?? positionRadio,
+            child: const SizedBox.expand(),
+          ),
+          Positioned.fill(
+            child: imageWidget,
+          ),
         ],
       ),
     );
@@ -528,10 +587,42 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
     initImages();
   }
 
-  Widget? _renderImage(dynamic heroTag, TUITheme theme, {V2TimImage? originalImg, V2TimImage? smallImg}) {
+  /// 渲染图片消息入口，负责计算宽高比并选择本地/网络资源渲染。
+  /// [heroTag] Hero 动画标识；[theme] 当前主题；
+  /// [originalImg] 原图信息；[smallImg] 缩略图信息。
+  /// 返回：图片消息组件，失败时返回错误占位。
+  /// 业务约束：宽高比缺失时使用 1.0 兜底，保证布局稳定。
+  Widget? _renderImage(
+    dynamic heroTag,
+    TUITheme theme, {
+    V2TimImage? originalImg,
+    V2TimImage? smallImg,
+  }) {
+    // 图片宽高比，优先使用缩略图或原图元数据，避免占位比例失真。
     double positionRadio = 1.0;
-    if (smallImg?.width != null && smallImg?.height != null && smallImg?.width != 0 && smallImg?.height != 0) {
-      positionRadio = (smallImg!.width! / smallImg.height!);
+    // 是否已从 SDK 元数据拿到宽高比。
+    bool hasMetaRatio = false;
+    // 元数据宽度，优先读取缩略图，缺失时回落原图。
+    // 元数据宽度，转为 double 便于后续比例计算。
+    final double? metaWidth =
+        (smallImg?.width ?? originalImg?.width)?.toDouble();
+    // 元数据高度，优先读取缩略图，缺失时回落原图。
+    // 元数据高度，转为 double 便于后续比例计算。
+    final double? metaHeight =
+        (smallImg?.height ?? originalImg?.height)?.toDouble();
+    if (metaWidth != null &&
+        metaHeight != null &&
+        metaWidth != 0 &&
+        metaHeight != 0) {
+      positionRadio = metaWidth / metaHeight;
+      hasMetaRatio = true;
+    }
+    // 元数据缺失时，尝试读取本地自定义字段缓存的宽高比。
+    if (!hasMetaRatio) {
+      final double? customRatio = _resolveCustomAspectRatio();
+      if (customRatio != null) {
+        positionRadio = customRatio;
+      }
     }
 
     if (PlatformUtils().isWeb && widget.message.imageElem!.path != null) {
@@ -604,8 +695,12 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final theme = value.theme;
     final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
-    final heroTag =
-        "${widget.message.msgID ?? widget.message.id ?? widget.message.timestamp ?? DateTime.now().millisecondsSinceEpoch}${widget.isFrom}";
+    // Hero 动画标识优先使用 msgID，缺失时回退时间戳，保证唯一性。
+    final String heroBase = widget.message.msgID ??
+        widget.message.id ??
+        widget.message.timestamp?.toString() ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    final String heroTag = "$heroBase${widget.isFrom}";
 
     V2TimImage? originalImg = getImageFromList(V2TimImageTypesEnum.original);
     V2TimImage? smallImg = getImageFromList(V2TimImageTypesEnum.small);

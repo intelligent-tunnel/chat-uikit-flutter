@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
@@ -996,6 +998,62 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     });
   }
 
+  /// 解析本地图片宽高比，用于发送时稳定首帧布局尺寸。
+  /// [imagePath] 本地图片路径。
+  /// 返回：宽高比（width / height），解析失败返回 null。
+  /// 业务约束：文件不存在、内容为空或宽高为 0 时返回 null。
+  Future<double?> _resolveImageAspectRatio(String imagePath) async {
+    try {
+      final File file = File(imagePath);
+      if (!file.existsSync()) {
+        return null;
+      }
+      final Uint8List bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        return null;
+      }
+      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+      final ui.FrameInfo frame = await codec.getNextFrame();
+      final int width = frame.image.width;
+      final int height = frame.image.height;
+      frame.image.dispose();
+      codec.dispose();
+      if (width == 0 || height == 0) {
+        return null;
+      }
+      return width / height;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 合并图片消息本地自定义数据，补充宽高比字段。
+  /// [origin] 原始 localCustomData 字符串；[aspectRatio] 预计算宽高比。
+  /// 返回：合并后的 JSON 字符串；若宽高比无效则返回原值。
+  /// 业务约束：origin 非 JSON 时会回退为仅包含宽高比的 JSON。
+  String? _buildImageLocalCustomData({
+    required String? origin,
+    required double? aspectRatio,
+  }) {
+    if (aspectRatio == null || aspectRatio <= 0) {
+      return origin;
+    }
+    try {
+      final Map<String, dynamic> base = origin == null || origin.isEmpty
+          ? <String, dynamic>{}
+          : (json.decode(origin) as Map<String, dynamic>);
+      base.putIfAbsent(
+        HistoryMessageDartConstant.imgAspectRatioKey,
+        () => aspectRatio,
+      );
+      return json.encode(base);
+    } catch (_) {
+      return json.encode(<String, dynamic>{
+        HistoryMessageDartConstant.imgAspectRatioKey: aspectRatio,
+      });
+    }
+  }
+
   /// 发送图片消息（统一走 messageWillSend 生命周期，便于业务侧拦截发消息）。
   /// - 入参：
   ///   - [imagePath] 本地图片路径（移动端使用）。
@@ -1007,6 +1065,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
   ///     - 用途：统一“拍摄/相册”图片在各端的宽高与方向信息，
   ///       避免气泡按错误比例布局出现边缘缝隙。
   ///     - 约束：为避免破坏动图，gif 格式会忽略该开关，仍按原文件发送。
+  ///   - 预处理：发送前会尝试写入图片宽高比到 localCustomData，
+  ///     用于首帧占位稳定，避免图片突然放大。
   /// - 返回：发送结果回调；若被生命周期拦截则返回 code=1 的结果且不会触发 SDK 发送。
   /// - 约束：若 messageWillSend 将 message.status 改为非 SENDING，则视为拦截，不再调用 _sendMessage。
   Future<V2TimValueCallback<V2TimMessage>?> sendImageMessage(
@@ -1016,6 +1076,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       dynamic inputElement,
       required ConvType convType,
       bool forceJpegCompress = false}) async {
+    // 发送前可能生成的压缩图片路径，用于统一图片方向与大小。
     String? optimizedImagePath;
     if ((PlatformUtils().isAndroid || PlatformUtils().isIOS) &&
         imagePath != null &&
@@ -1046,6 +1107,15 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         // ignore: empty_catches
       } catch (e) {}
     }
+    // 预计算图片宽高比，用于首帧布局稳定。
+    double? aspectRatio;
+    // 宽高比计算时优先使用压缩后的路径，保证方向信息一致。
+    final String? ratioSourcePath = optimizedImagePath ?? imagePath;
+    if ((PlatformUtils().isAndroid || PlatformUtils().isIOS) &&
+        ratioSourcePath != null &&
+        ratioSourcePath.isNotEmpty) {
+      aspectRatio = await _resolveImageAspectRatio(ratioSourcePath);
+    }
     final imageMessageInfo = await _messageService.createImageMessage(
       imageName: imageName,
       imagePath: optimizedImagePath ?? imagePath,
@@ -1066,6 +1136,14 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     final V2TimMessage message =
         tools.setUserInfoForMessage(messageInfo, imageMessageId);
     message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    // 合并并写入宽高比字段，避免发送中占位尺寸跳变。
+    final String? mergedLocalCustomData = _buildImageLocalCustomData(
+      origin: message.localCustomData,
+      aspectRatio: aspectRatio,
+    );
+    if (mergedLocalCustomData != null) {
+      message.localCustomData = mergedLocalCustomData;
+    }
 
     return _processAndSendMessage(
       message: message,
@@ -1073,6 +1151,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       convID: convID,
       convType: convType,
       offlinePushInfo: tools.buildMessagePushInfo(message, convID, convType),
+      localCustomData: mergedLocalCustomData,
     );
   }
 

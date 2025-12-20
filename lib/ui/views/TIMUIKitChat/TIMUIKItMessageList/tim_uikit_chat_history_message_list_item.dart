@@ -849,7 +849,13 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
     });
   }
 
-  initTools(
+  /// 初始化长按消息悬浮面板的定位与工具条配置。
+  /// 入参：[context] 当前构建上下文；[isLongMessage] 是否为长文本消息；
+  /// [model] 聊天视图模型；[theme] 主题；[isShowMoreSticker] 是否展开更多表情；
+  /// [details] 点击详情；[isFromWideToolTip] 是否来自宽提示面板。
+  /// 返回值：void。
+  /// 约束：长按面板不显示尖角，避免额外留白影响消息对齐。
+  void initTools(
       {BuildContext? context,
       bool isLongMessage = false,
       required TUIChatSeparateViewModel model,
@@ -859,13 +865,20 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
       bool? isFromWideToolTip}) {
     // 左/右对齐时的额外内边距（使面板与消息之间留出一点空间）
     const double _horizontalAlignPadding = 50.0;
-    final isUseMessageReaction = widget.message.elemType == 2 ? false : model.chatConfig.isUseMessageReaction;
-    final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
-    final isSelf = widget.message.isSelf ?? true;
+    // 是否启用消息表情回应入口：系统消息类型不展示表情回应。
+    final bool isUseMessageReaction = widget.message.elemType == 2
+        ? false
+        : model.chatConfig.isUseMessageReaction;
+    // 是否为自己发送的消息，用于左右对齐计算。
+    final bool isSelf = widget.message.isSelf ?? true;
+    // 尖角提示距离：保留原始间距计算，确保面板位置与历史一致。
     double arrowTipDistance = 30;
+    // 尖角底边宽度：保留原值，避免依赖该值的布局出现变化。
     double arrowBaseWidth = 10;
+    // 尖角长度：保留原始间距计算，确保面板位置与历史一致。
     double arrowLength = 10;
-    bool hasArrow = true;
+    // 是否显示尖角：移动端与桌面端统一关闭。
+    const bool hasArrow = false;
     TooltipDirection popupDirection = TooltipDirection.up;
     double? left;
     double? right;
@@ -878,10 +891,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
         double screenWidth = MediaQuery.of(context).size.width;
         final Offset offset = box.localToGlobal(Offset.zero);
         final double boxWidth = box.size.width;
-        hasArrow = isDesktopScreen ? false : true;
-        arrowTipDistance = 0;
-        arrowBaseWidth = 0;
-        arrowLength = 0;
+        // 有点击明细时改为向下弹出，保持与消息行的视觉关系。
         popupDirection = TooltipDirection.down;
         if (isSelf || (isFromWideToolTip ?? false)) {
           right = screenWidth - offset.dx - boxWidth + _horizontalAlignPadding;
@@ -909,7 +919,10 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
             popupDirection = TooltipDirection.down;
           }
         }
-        arrowTipDistance = (context.size!.height / 2).roundToDouble() + (isLongMessage ? -120 : 10);
+        // 维持原始的垂直间距计算，避免面板贴近或偏离消息气泡。
+        arrowTipDistance =
+            (context.size!.height / 2).roundToDouble() +
+            (isLongMessage ? -120 : 10);
       }
     }
 
