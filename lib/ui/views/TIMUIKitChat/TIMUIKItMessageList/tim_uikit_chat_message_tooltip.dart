@@ -239,7 +239,7 @@ class TIMUIKitMessageTooltipState
 
   _buildLongPressTipItem(
       TUITheme theme, TUIChatSeparateViewModel model, V2TimMessage message) {
-    final isDesktopScreen =
+    final bool isDesktopScreen =
         TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
     final isCanRevokeSelf = isRevocable(
         widget.message.timestamp!, model.chatConfig.upperRecallTime);
@@ -638,11 +638,29 @@ class TIMUIKitMessageTooltipState
     widget.onCloseTooltip();
   }
 
+  /// 构建长按消息悬浮面板的内容区域。
+  /// 入参：[context] 构建上下文；[value] UIKit 构建值（包含主题与模型）。
+  /// 返回值：用于 Tooltip 展示的面板组件。
+  /// 约束：面板内边距更紧凑，避免遮挡消息内容且保持可点击区域。
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final TUITheme theme = value.theme;
-    final isDesktopScreen =
+    // 是否为桌面端，用于选择面板内边距策略。
+    final bool isDesktopScreen =
         TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+    // 面板横向内边距：适度收紧宽度但保留点击空间。
+    const double _tooltipPaddingHorizontal = 6;
+    // 面板纵向内边距（移动端）：减少高度但不影响触控体验。
+    const double _tooltipPaddingVerticalMobile = 3;
+    // 面板纵向内边距（桌面端）：更紧凑以贴合悬浮面板视觉。
+    const double _tooltipPaddingVerticalDesktop = 6;
+    // 面板圆角半径：保持悬浮面板圆角一致性。
+    const double _tooltipBorderRadius = 10;
+    // 面板背景装饰：统一圆角与背景色，避免移动端出现直角。
+    final BoxDecoration tooltipDecoration = BoxDecoration(
+      color: const Color(0xFF4C4C4C),
+      borderRadius: BorderRadius.all(Radius.circular(_tooltipBorderRadius)),
+    );
     String _fallbackIconFor(String id) {
       switch (id) {
         case 'copyMessage':
@@ -687,22 +705,20 @@ class TIMUIKitMessageTooltipState
             : null;
         final message = widget.message;
         return Container(
-            decoration: isDesktopScreen
-                ? const BoxDecoration(
-                    color: Color(0xFF4C4C4C),
-                    borderRadius: BorderRadius.all(Radius.circular(10)),
-                  )
-                : null,
-            color: isDesktopScreen ? null : const Color(0xFF4C4C4C),
-            padding: EdgeInsets.symmetric(
-                horizontal: 8, vertical: isDesktopScreen ? 8 : 4),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: min(MediaQuery.of(context).size.width * 0.75, 350),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+          decoration: tooltipDecoration,
+          padding: EdgeInsets.symmetric(
+            horizontal: _tooltipPaddingHorizontal,
+            vertical: isDesktopScreen
+                ? _tooltipPaddingVerticalDesktop
+                : _tooltipPaddingVerticalMobile,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: min(MediaQuery.of(context).size.width * 0.75, 350),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                   if ((!isDesktopScreen || widget.isShowMoreSticker) &&
                       widget.isUseMessageReaction &&
                       widget.selectEmojiPanelPosition ==
