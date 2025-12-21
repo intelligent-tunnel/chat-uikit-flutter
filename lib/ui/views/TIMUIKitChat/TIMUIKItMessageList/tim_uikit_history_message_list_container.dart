@@ -2,6 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
@@ -152,6 +153,39 @@ class _TIMUIKitHistoryMessageListContainerState extends TIMUIKitState<TIMUIKitHi
     _historyMessageListController = TIMUIKitHistoryMessageListController(scrollController: widget.scrollController);
   }
 
+  /// 判断消息列表滚动时是否需要收起输入面板。
+  /// 入参：notification 为滚动通知。
+  /// 返回：true 表示需要收起输入面板。
+  /// 业务约束：仅对单聊场景的用户主动纵向滚动生效，避免影响程序滚动与嵌套滚动。
+  bool _shouldHideInputOnScroll(ScrollNotification notification) {
+    if (widget.conversationType != ConvType.c2c) {
+      return false;
+    }
+    if (notification.depth != 0 || notification is! UserScrollNotification) {
+      return false;
+    }
+    if (notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
+    return notification.direction != ScrollDirection.idle;
+  }
+
+  /// 处理消息列表滚动通知并收起输入面板。
+  /// 入参：notification 为滚动通知。
+  /// 返回：false，保持通知继续冒泡。
+  /// 业务约束：仅在单聊消息列表的用户滚动场景触发。
+  bool _handleMessageListScroll(ScrollNotification notification) {
+    if (!_shouldHideInputOnScroll(notification)) {
+      return false;
+    }
+    widget.textFieldController?.hideAllPanel();
+    return false;
+  }
+
+  /// 构建消息列表容器，并在用户滚动时收起输入面板与表情面板。
+  /// 入参：context 为构建上下文，value 为主题与状态快照。
+  /// 返回：消息列表容器组件。
+  /// 业务约束：仅对单聊用户滚动触发收起逻辑。
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final chatConfig = Provider.of<TIMUIKitChatConfig>(context);
@@ -160,42 +194,45 @@ class _TIMUIKitHistoryMessageListContainerState extends TIMUIKitState<TIMUIKitHi
     return TIMUIKitHistoryMessageListSelector(
       conversationID: model.conversationID,
       builder: (context, messageList, child) {
-        return TIMUIKitHistoryMessageList(
-          conversation: widget.conversation,
-          model: model,
-          isAllowScroll: widget.isAllowScroll,
-          controller: _historyMessageListController,
-          groupAtInfoList: widget.groupAtInfoList,
-          mainHistoryListConfig: widget.mainHistoryListConfig,
-          itemBuilder: (context, message) {
-            return TIMUIKitHistoryMessageListItem(
-                customMessageHoverBarOnDesktop: widget.customMessageHoverBarOnDesktop,
-                groupMemberInfo: widget.groupMemberInfo,
-                textFieldController: widget.textFieldController,
-                userAvatarBuilder: widget.userAvatarBuilder,
-                customEmojiStickerList: widget.customEmojiStickerList,
-                topRowBuilder: _getTopRowBuilder(model),
-                onScrollToIndex: _historyMessageListController.scrollToIndex,
-                onScrollToIndexBegin: _historyMessageListController.scrollToIndexBegin,
-                toolTipsConfig:
-                    widget.toolTipsConfig ?? ToolTipsConfig(additionalItemBuilder: widget.extraTipsActionItemBuilder),
-                message: message!,
-                showAvatar: chatConfig.isShowAvatar,
-                onSecondaryTapForOthersPortrait: widget.onSecondaryTapAvatar,
-                onTapForOthersPortrait: widget.onTapAvatar,
-                messageItemBuilder: widget.messageItemBuilder,
-                onLongPressForOthersHeadPortrait: widget.onLongPressForOthersHeadPortrait,
-                allowAtUserWhenReply: chatConfig.isAtWhenReply,
-                allowAvatarTap: chatConfig.isAllowClickAvatar,
-                allowLongPress: chatConfig.isAllowLongPressMessage,
-                isUseMessageReaction: chatConfig.isUseMessageReaction);
-          },
-          tongueItemBuilder: widget.tongueItemBuilder,
-          initFindingMsg: widget.initFindingMsg,
-          messageList: messageList,
-          onLoadMore: (String? a, LoadDirection direction, [int? b, int? lastSeq]) async {
-            return await requestForData(a, direction, model, b, lastSeq);
-          },
+        return NotificationListener<ScrollNotification>(
+          onNotification: _handleMessageListScroll,
+          child: TIMUIKitHistoryMessageList(
+            conversation: widget.conversation,
+            model: model,
+            isAllowScroll: widget.isAllowScroll,
+            controller: _historyMessageListController,
+            groupAtInfoList: widget.groupAtInfoList,
+            mainHistoryListConfig: widget.mainHistoryListConfig,
+            itemBuilder: (context, message) {
+              return TIMUIKitHistoryMessageListItem(
+                  customMessageHoverBarOnDesktop: widget.customMessageHoverBarOnDesktop,
+                  groupMemberInfo: widget.groupMemberInfo,
+                  textFieldController: widget.textFieldController,
+                  userAvatarBuilder: widget.userAvatarBuilder,
+                  customEmojiStickerList: widget.customEmojiStickerList,
+                  topRowBuilder: _getTopRowBuilder(model),
+                  onScrollToIndex: _historyMessageListController.scrollToIndex,
+                  onScrollToIndexBegin: _historyMessageListController.scrollToIndexBegin,
+                  toolTipsConfig: widget.toolTipsConfig ??
+                      ToolTipsConfig(additionalItemBuilder: widget.extraTipsActionItemBuilder),
+                  message: message!,
+                  showAvatar: chatConfig.isShowAvatar,
+                  onSecondaryTapForOthersPortrait: widget.onSecondaryTapAvatar,
+                  onTapForOthersPortrait: widget.onTapAvatar,
+                  messageItemBuilder: widget.messageItemBuilder,
+                  onLongPressForOthersHeadPortrait: widget.onLongPressForOthersHeadPortrait,
+                  allowAtUserWhenReply: chatConfig.isAtWhenReply,
+                  allowAvatarTap: chatConfig.isAllowClickAvatar,
+                  allowLongPress: chatConfig.isAllowLongPressMessage,
+                  isUseMessageReaction: chatConfig.isUseMessageReaction);
+            },
+            tongueItemBuilder: widget.tongueItemBuilder,
+            initFindingMsg: widget.initFindingMsg,
+            messageList: messageList,
+            onLoadMore: (String? a, LoadDirection direction, [int? b, int? lastSeq]) async {
+              return await requestForData(a, direction, model, b, lastSeq);
+            },
+          ),
         );
       },
     );
