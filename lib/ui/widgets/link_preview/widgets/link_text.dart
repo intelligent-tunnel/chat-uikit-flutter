@@ -48,6 +48,10 @@ class LinkTextMarkdown extends TIMStatelessWidget {
       this.style})
       : super(key: key);
 
+  /// 构建带超链接的 Markdown 文本展示。
+  /// - 入参：[context] 当前上下文，用于处理点击跳转。
+  /// - 返回：渲染 Markdown 文本的 Widget。
+  /// - 业务约束：超链接样式跟随文本颜色，默认白色并带下划线。
   @override
   Widget timBuild(BuildContext context) {
     return MarkdownBody(
@@ -59,7 +63,9 @@ class LinkTextMarkdown extends TIMStatelessWidget {
               textTheme: TextTheme(
                   bodyMedium: style ?? const TextStyle(fontSize: 16.0))))
           .copyWith(
-        a: TextStyle(color: LinkUtils.hexToColor("015fff")),
+        a: LinkUtils.resolveLinkTextStyle(
+          style ?? DefaultTextStyle.of(context).style,
+        ),
       ),
       extensionSet: md.ExtensionSet.gitHubWeb,
       onTapLink: (
@@ -109,6 +115,10 @@ class LinkText extends TIMStatelessWidget {
       this.customEmojiStickerList = const []})
       : super(key: key);
 
+  /// 解析原始文本并标记超链接，返回用于 ExtendedText 的内容字符串。
+  /// - 入参：[text] 原始消息文本；[context] 当前上下文用于打开链接。
+  /// - 返回：插入特殊标记后的文本，用于 SpecialTextSpanBuilder 识别。
+  /// - 业务约束：超链接样式跟随文本颜色，默认白色并带下划线。
   String _getContentSpan(String text, BuildContext context) {
     List<InlineSpan> _contentList = [];
     String contentData = PlatformUtils().isWeb ? '\u200B' : "";
@@ -134,7 +144,9 @@ class LinkText extends TIMStatelessWidget {
         contentData += HttpText.flag + c + HttpText.flag;
         _contentList.add(TextSpan(
             text: c,
-            style: TextStyle(color: LinkUtils.hexToColor("015fff")),
+            style: LinkUtils.resolveLinkTextStyle(
+              style ?? DefaultTextStyle.of(context).style,
+            ),
             recognizer: TapGestureRecognizer()
               ..onTap = () {
                 if (onLinkTap != null) {

@@ -14,6 +14,26 @@ class LinkUtils {
   static RegExp urlReg = RegExp(
       r"([hH][tT]{2}[pP]:\/\/|[hH][tT]{2}[pP][sS]:\/\/|[wW]{3}.|[wW][aA][pP].|[fF][tT][pP].|[fF][iI][lL][eE].)[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]");
 
+  /// 超链接文字默认颜色，用于未显式指定文字颜色的场景。
+  /// - 业务约束：仅用于聊天内超链接文本展示。
+  static const Color linkTextColor = Colors.white;
+
+  /// 生成超链接文本样式，跟随文本颜色并添加下划线。
+  /// - 入参：[baseStyle] 基础文本样式，可为空。
+  /// - 返回：保持字体信息、补齐颜色并添加下划线的文本样式。
+  /// - 业务约束：若基础样式无颜色则使用 [linkTextColor] 兜底。
+  static TextStyle resolveLinkTextStyle(TextStyle? baseStyle) {
+    final TextStyle resolvedBaseStyle =
+        baseStyle ?? const TextStyle(fontSize: 16.0);
+    final Color resolvedColor =
+        resolvedBaseStyle.color ?? linkTextColor;
+    return resolvedBaseStyle.copyWith(
+      color: resolvedColor,
+      decoration: TextDecoration.underline,
+      decorationColor: resolvedColor,
+    );
+  }
+
   /// Get all the URL from a text message
   static List<String> getURLMatches(String textMessage) {
     final matches = urlReg.allMatches(textMessage).toList();

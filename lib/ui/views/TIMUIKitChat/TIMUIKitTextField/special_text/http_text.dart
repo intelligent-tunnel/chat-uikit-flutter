@@ -10,6 +10,12 @@ class HttpText extends SpecialText {
       : super(flag, flag, textStyle, onTap: onTap);
   static const String flag = '!@TURL#*&\$';
   final int? start;
+
+  /// 构建超链接的富文本展示。
+  /// - 入参：无显式入参，使用 [textStyle] 与当前文本内容构建。
+  /// - 返回：带点击事件的 [InlineSpan]，用于渲染超链接。
+  /// - 业务约束：超链接样式统一走 [LinkUtils.resolveLinkTextStyle]，
+  ///   跟随文本颜色并补充下划线。
   @override
   InlineSpan finishText() {
     final String text = getContent();
@@ -21,7 +27,7 @@ class HttpText extends SpecialText {
 
         ///caret can move into special text
         deleteAll: true,
-        style: TextStyle(color: LinkUtils.hexToColor("015fff")),
+        style: LinkUtils.resolveLinkTextStyle(textStyle),
         recognizer: TapGestureRecognizer()
           ..onTap = () {
             if (onTap != null) {
